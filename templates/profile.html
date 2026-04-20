@@ -1,0 +1,80 @@
+{% extends "base.html" %}
+
+{% block title %}Profile - Profit Tracker{% endblock %}
+
+{% block content %}
+<h1 class="page-header">User Profile & Preferences</h1>
+
+<div class="card">
+    <form method="POST" action="{{ url_for('profile') }}">
+        <!-- Email -->
+        <div class="form-group">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" value="{{ current_user.email }}" required>
+        </div>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Preferences</h3>
+
+        <!-- Currency -->
+        <div class="form-group">
+            <label for="currency">Currency Symbol</label>
+            <select id="currency" name="currency">
+                <option value="$" {% if current_user.currency == '$' %}selected{% endif %}>USD ($)</option>
+                <option value="€" {% if current_user.currency == '€' %}selected{% endif %}>Euro (€)</option>
+                <option value="£" {% if current_user.currency == '£' %}selected{% endif %}>Pound (£)</option>
+                <option value="¥" {% if current_user.currency == '¥' %}selected{% endif %}>Yen (¥)</option>
+                <option value="₹" {% if current_user.currency == '₹' %}selected{% endif %}>Rupee (₹)</option>
+            </select>
+        </div>
+
+        <!-- Date Format -->
+        <div class="form-group">
+            <label for="date_format">Date Format</label>
+            <select id="date_format" name="date_format">
+                <option value="%b %d, %Y" {% if current_user.date_format == '%b %d, %Y' %}selected{% endif %}>Apr 20, 2026</option>
+                <option value="%m/%d/%Y" {% if current_user.date_format == '%m/%d/%Y' %}selected{% endif %}>04/20/2026</option>
+                <option value="%d/%m/%Y" {% if current_user.date_format == '%d/%m/%Y' %}selected{% endif %}>20/04/2026</option>
+                <option value="%Y-%m-%d" {% if current_user.date_format == '%Y-%m-%d' %}selected{% endif %}>2026-04-20</option>
+            </select>
+        </div>
+
+        <!-- Timezone -->
+        <div class="form-group">
+            <label for="timezone">Timezone</label>
+            <select id="timezone" name="timezone">
+                <option value="UTC" {% if current_user.timezone == 'UTC' %}selected{% endif %}>UTC</option>
+                <option value="America/New_York" {% if current_user.timezone == 'America/New_York' %}selected{% endif %}>America/New_York</option>
+                <option value="America/Los_Angeles" {% if current_user.timezone == 'America/Los_Angeles' %}selected{% endif %}>America/Los_Angeles</option>
+                <option value="Europe/London" {% if current_user.timezone == 'Europe/London' %}selected{% endif %}>Europe/London</option>
+                <option value="Europe/Paris" {% if current_user.timezone == 'Europe/Paris' %}selected{% endif %}>Europe/Paris</option>
+                <option value="Asia/Tokyo" {% if current_user.timezone == 'Asia/Tokyo' %}selected{% endif %}>Asia/Tokyo</option>
+                <option value="Asia/Kolkata" {% if current_user.timezone == 'Asia/Kolkata' %}selected{% endif %}>Asia/Kolkata</option>
+            </select>
+        </div>
+
+        <h3 style="margin-top: 2rem; margin-bottom: 1rem;">Change Password</h3>
+        <p style="color: #666; margin-bottom: 1rem;">Leave blank to keep current password</p>
+
+        <!-- Current Password -->
+        <div class="form-group">
+            <label for="current_password">Current Password</label>
+            <input type="password" id="current_password" name="current_password">
+        </div>
+
+        <!-- New Password -->
+        <div class="form-group">
+            <label for="new_password">New Password</label>
+            <input type="password" id="new_password" name="new_password">
+        </div>
+
+        <!-- Confirm Password -->
+        <div class="form-group">
+            <label for="confirm_password">Confirm New Password</label>
+            <input type="password" id="confirm_password" name="confirm_password">
+        </div>
+
+        <!-- Submit -->
+        <button type="submit" class="btn btn-success" style="width: 100%;">Save Changes</button>
+    </form>
+</div>
+{% endblock %}

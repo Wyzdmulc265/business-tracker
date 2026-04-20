@@ -1,0 +1,48 @@
+📊 PROFIT TRACKER 
+
+💡 What it does
+A simple web app that helps small businesses:
+1. Record daily sales
+2. Record expenses
+3. Automatically calculate profit
+4. View daily/weekly/monthly summaries
+5. Track business performance
+
+🚀 CORE FEATURES (MVP + SELLABLE VERSION)
+1. Dashboard
+ Total Sales (today / month)
+ Total Expenses (today / month)
+ Net Profit
+ Quick summary cards
+
+2. Add Transactions
+Two types:
+ 💰 Sale
+ 💸 Expense
+
+Fields:
+Amount
+ Category (e.g. food, transport, stock, etc.)
+ Description
+ Date (auto or manual)
+
+3. Transaction History
+ Filter by date
+ Filter by type (sales/expenses)
+ Delete entries
+
+4. Reports Page
+ Daily profit summary
+ Weekly trend
+ Monthly total
+
+5. Simple Categories System
+ Sales categories
+ Expense categories
+
+🧱 SYSTEM ARCHITECTURE
+Tech Stack
+Backend: Flask (Python)
+Database: SQLite
+Frontend: HTML + CSS (simple, fast, clean)
+Deployment: Render or similar

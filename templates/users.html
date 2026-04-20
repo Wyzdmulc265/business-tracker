@@ -1,0 +1,59 @@
+{% extends "base.html" %}
+
+{% block title %}User Management - Profit Tracker{% endblock %}
+
+{% block content %}
+<h1 class="page-header">User Management</h1>
+
+<div class="card">
+    <h3>Add Team Member</h3>
+    <form method="POST" action="{{ url_for('add_user') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
+        {{ form.csrf_token }}
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="username">Username</label>
+            <input type="text" id="username" name="username" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="email">Email</label>
+            <input type="email" id="email" name="email" required>
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="password">Password</label>
+            <input type="password" id="password" name="password" required minlength="6">
+        </div>
+        <div class="form-group" style="margin-bottom: 0;">
+            <label for="role">Role</label>
+            <select id="role" name="role" required>
+                <option value="viewer">Viewer</option>
+                <option value="accountant">Accountant</option>
+                <option value="business_admin">Business Admin</option>
+            </select>
+        </div>
+        <div style="display: flex; align-items: end;">
+            <button type="submit" class="btn btn-success">Add User</button>
+        </div>
+    </form>
+    <table class="user-table">
+        <thead>
+            <tr>
+                <th>ID</th>
+                <th>Username</th>
+                <th>Email</th>
+                <th>Role</th>
+                <th>Status</th>
+                <th>Created</th>
+    
+            </tr>
+        </thead>
+        <tbody>
+            {% for user in users %}
+            <tr>
+                <td>{{ user.id }}</td>
+                <td>{{ user.username }}</td>
+                <td>{{ user.email }}</td>
+            </tr>
+        {% endfor %}
+    </tbody>
+</table>
+</div>
+{% endblock %}

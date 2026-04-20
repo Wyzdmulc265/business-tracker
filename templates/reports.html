@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Reports - Profit Tracker{% endblock %}
+
+{% block content %}
+<h1 class="page-header">Reports & Analytics</h1>
+
+<!-- Overall Stats -->
+<div class="reports-grid">
+    <div class="report-card">
+        <h3>Total Sales</h3>
+        <div class="value positive">${{ "%.2f"|format(total_sales) }}</div>
+    </div>
+    <div class="report-card">
+        <h3>Total Expenses</h3>
+        <div class="value negative">${{ "%.2f"|format(total_expenses) }}</div>
+    </div>
+    <div class="report-card">
+        <h3>Net Profit</h3>
+        <div class="value {% if total_profit >= 0 %}positive{% else %}negative{% endif %}">
+            ${{ "%.2f"|format(total_profit) }}
+        </div>
+    </div>
+</div>
+
+<!-- Daily Chart -->
+<div class="chart-container">
+    <h2>📅 Last 7 Days Trend</h2>
+    <div class="chart-bars">
+        {% for day in daily_summary %}
+            <div class="chart-bar">
+                <div class="bar-value">${{ "%.0f"|format(day.profit) }}</div>
+                <div class="bar daily-bar {% if day.profit >= 0 %}bar-positive{% else %}bar-negative{% endif %}" style="height: {{ day.bar_height }}px;"></div>
+                <div class="bar-label">{{ day.date.strftime('%a') }}</div>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="daily-details">
+        {% for day in daily_summary %}
+            <div class="daily-detail">
+                <strong>{{ day.date.strftime('%b %d') }}</strong><br>
+                Sales: ${{ "%.0f"|format(day.sales) }}<br>
+                Expenses: ${{ "%.0f"|format(day.expenses) }}<br>
+                Profit: <span class="daily-profit {% if day.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">${{ "%.0f"|format(day.profit) }}</span>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Monthly Chart -->
+<div class="chart-container monthly-chart">
+    <h2>📆 Last 6 Months Summary</h2>
+    <div class="chart-bars">
+        {% for month in monthly_totals %}
+            <div class="chart-bar">
+                <div class="bar-value">${{ "%.0f"|format(month.profit) }}</div>
+                <div class="bar monthly-bar {% if month.profit >= 0 %}bar-positive{% else %}bar-negative{% endif %}" style="height: {{ month.bar_height }}px;"></div>
+                <div class="bar-label">{{ month.month[:3] }}</div>
+            </div>
+        {% endfor %}
+    </div>
+    <div class="monthly-details">
+        {% for month in monthly_totals %}
+            <div class="monthly-detail">
+                <strong>{{ month.month }}</strong><br>
+                Sales: ${{ "%.0f"|format(month.sales) }}<br>
+                Expenses: ${{ "%.0f"|format(month.expenses) }}<br>
+                Profit: <span class="monthly-profit {% if month.profit >= 0 %}profit-positive{% else %}profit-negative{% endif %}">${{ "%.0f"|format(month.profit) }}</span>
+            </div>
+        {% endfor %}
+    </div>
+</div>
+
+<!-- Additional Stats - now only shows history -->
+    <div class="additional-stats">
+        <a href="{{ url_for('history') }}" class="btn btn-primary">View Full Transaction History</a>
+    </div>
+</div>
+{% endblock %}

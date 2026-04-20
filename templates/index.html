@@ -1,0 +1,79 @@
+{% extends "base.html" %}
+
+{% block title %}Dashboard - Profit Tracker{% endblock %}
+
+{% block content %}
+<h1 class="page-header">Dashboard</h1>
+
+<div class="dashboard-grid">
+    <!-- Today's Sales -->
+    <div class="card summary-card sales">
+        <div class="icon">💰</div>
+        <h3>Today's Sales</h3>
+        <div class="value">${{ "%.2f"|format(today_sales) }}</div>
+    </div>
+
+    <!-- Today's Expenses -->
+    <div class="card summary-card expenses">
+        <div class="icon">💸</div>
+        <h3>Today's Expenses</h3>
+        <div class="value">${{ "%.2f"|format(today_expenses) }}</div>
+    </div>
+
+    <!-- Today's Profit -->
+    <div class="card summary-card profit">
+        <div class="icon">📈</div>
+        <h3>Today's Profit</h3>
+        <div class="value">${{ "%.2f"|format(today_profit) }}</div>
+    </div>
+
+    <!-- Monthly Sales -->
+    <div class="card summary-card sales">
+        <div class="icon">📊</div>
+        <h3>This Month's Sales</h3>
+        <div class="value">${{ "%.2f"|format(month_sales) }}</div>
+    </div>
+
+    <!-- Monthly Expenses -->
+    <div class="card summary-card expenses">
+        <div class="icon">📉</div>
+        <h3>This Month's Expenses</h3>
+        <div class="value">${{ "%.2f"|format(month_expenses) }}</div>
+    </div>
+
+    <!-- Monthly Profit -->
+    <div class="card summary-card profit">
+        <div class="icon">💵</div>
+        <h3>This Month's Profit</h3>
+        <div class="value">${{ "%.2f"|format(month_profit) }}</div>
+    </div>
+</div>
+
+<!-- Recent Transactions -->
+<div class="recent-section">
+    <h2 class="page-header">Recent Transactions</h2>
+    {% if recent_transactions %}
+        <div class="transaction-list">
+            {% for t in recent_transactions %}
+                <div class="transaction-item {{ t.type }}">
+                    <div class="transaction-info">
+                        <h4>{{ t.category.name }}</h4>
+                        <small>{{ t.date.strftime('%b %d, %Y') }}{% if t.description %} • {{ t.description }}{% endif %}</small>
+                    </div>
+                    <div class="transaction-amount {{ 'positive' if t.type == 'sale' else 'negative' }}">
+                        {{ '$%.2f'|format(t.amount) if t.type == 'sale' else '-$%.2f'|format(t.amount) }}
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+        <div style="text-align: center; margin-top: 1rem;">
+            <a href="{{ url_for('history') }}" class="btn btn-primary">View All Transactions</a>
+        </div>
+    {% else %}
+        <div class="card empty-state">
+            <div class="icon">📭</div>
+            <p>No transactions yet. <a href="{{ url_for('add_transaction') }}" class="text-link">Add your first transaction</a>!</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

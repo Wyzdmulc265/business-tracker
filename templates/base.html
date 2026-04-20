@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{% block title %}Profit Tracker{% endblock %}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+    <header>
+        <div class="header-content">
+            <div class="logo">📊 Profit Tracker</div>
+            <nav>
+                <ul>
+                    {% if current_user.is_authenticated %}
+                        <li><a href="{{ url_for('dashboard') }}" class="{% if request.endpoint == 'dashboard' %}active{% endif %}">Dashboard</a></li>
+                        {% if not current_user.is_super_admin() %}
+                        <li><a href="{{ url_for('add_transaction') }}" class="{% if request.endpoint == 'add_transaction' %}active{% endif %}">Add Transaction</a></li>
+                        {% endif %}
+                        <li><a href="{{ url_for('history') }}" class="{% if request.endpoint == 'history' %}active{% endif %}">History</a></li>
+                        <li><a href="{{ url_for('reports') }}" class="{% if request.endpoint == 'reports' %}active{% endif %}">Reports</a></li>
+                        {% if current_user.is_business_admin() or current_user.is_super_admin() %}
+                        <li><a href="{{ url_for('pending_approvals') }}" class="{% if request.endpoint == 'pending_approvals' %}active{% endif %}">Approvals</a></li>
+                        {% endif %}
+                        {% if current_user.is_business_admin() or current_user.is_super_admin() %}
+                        <li><a href="{{ url_for('user_management') }}" class="{% if request.endpoint == 'user_management' %}active{% endif %}">Users</a></li>
+                        {% endif %}
+                    {% endif %}
+                </ul>
+            </nav>
+            <div class="user-menu">
+                {% if current_user.is_authenticated %}
+                    {% if not current_user.is_super_admin() %}
+                    <a href="{{ url_for('profile') }}" class="btn btn-primary">Profile</a>
+                    {% endif %}
+                    <span class="user-info">
+                        <span class="user-role {% if current_user.role == 'super_admin' %}super_admin{% elif current_user.role == 'business_admin' %}business_admin{% elif current_user.role == 'accountant' %}accountant{% elif current_user.role == 'viewer' %}viewer{% endif %}">
+                            {{ current_user.username }} ({{ current_user.role }})
+                        </span>
+                    </span>
+                    <a href="{{ url_for('logout') }}" class="btn btn-danger">Logout</a>
+                {% else %}
+                    <a href="{{ url_for('login') }}" class="btn btn-primary">Login</a>
+                {% endif %}
+            </div>
+        </div>
+    </header>
+
+    <div class="container">
+        <!-- Flash Messages -->
+        {% with messages = get_flashed_messages(with_categories=true) %}
+            {% if messages %}
+                {% for category, message in messages %}
+                    <div class="alert alert-{{ category }}">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+        {% endwith %}
+
+        {% block content %}{% endblock %}
+    </div>
+
+    <script>
+        // Auto-hide flash messages
+        document.addEventListener('DOMContentLoaded', function() {
+            const alerts = document.querySelectorAll('.alert');
+            alerts.forEach(alert => {
+                setTimeout(() => {
+                    alert.style.transition = 'opacity 0.5s';
+                    alert.style.opacity = '0';
+                    setTimeout(() => alert.remove(), 500);
+                }, 3000);
+            });
+        });
+    </script>
+</body>
+</html>

@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+
+{% block title %}Pending Approvals - Profit Tracker{% endblock %}
+
+{% block content %}
+<h1 class="page-header">Pending Approvals</h1>
+
+<div class="card">
+    {% if transactions %}
+        <div class="table-responsive">
+            <table>
+                <thead>
+                    <tr>
+                        <th>Date</th>
+                        <th>Type</th>
+                        <th>Category</th>
+                        <th>Description</th>
+                        <th>Amount</th>
+                        <th>Created By</th>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for transaction in transactions %}
+                        <tr>
+                            <td>{{ transaction.date.strftime('%b %d, %Y') }}</td>
+                            <td>
+                                <span class="type-badge {% if transaction.type == 'sale' %}type-sale{% else %}type-expense{% endif %}">
+                                    {{ 'Sale' if transaction.type == 'sale' else 'Expense' }}
+                                </span>
+                            </td>
+                            <td>{{ transaction.category.name }}</td>
+                            <td>{{ transaction.description if transaction.description else '-' }}</td>
+                            <td class="amount-cell {% if transaction.type == 'sale' %}amount-positive{% else %}amount-negative{% endif %}">
+                                {{ '$%.2f'|format(transaction.amount) if transaction.type == 'sale' else '-$%.2f'|format(transaction.amount) }}
+                            </td>
+                            <td>{{ transaction.creator.username }}</td>
+                            <td>
+                                <div class="action-buttons">
+                                    <a href="{{ url_for('approve_transaction', transaction_id=transaction.id) }}" class="btn btn-sm btn-success">Approve</a>
+                                    <a href="{{ url_for('reject_transaction', transaction_id=transaction.id) }}" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to reject this transaction?')">Reject</a>
+                                    <a href="{{ url_for('edit_transaction', id=transaction.id) }}" class="btn btn-sm btn-primary">Edit</a>
+                                </div>
+                            </td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        </div>
+    {% else %}
+        <div class="empty-state">
+            <div class="icon">✅</div>
+            <p>No pending approvals.</p>
+        </div>
+    {% endif %}
+</div>
+{% endblock %}

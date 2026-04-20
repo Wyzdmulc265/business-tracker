@@ -1,0 +1,20 @@
+services:
+  - type: web
+    name: profit-tracker
+    env: python
+    buildCommand: pip install -r requirements.txt
+    startCommand: gunicorn app:app
+    envVars:
+      - key: SECRET_KEY
+        sync: false
+      - key: DATABASE_URL
+        fromDatabase:
+          name: profit-tracker-db
+          property: connectionString
+    autoDeploy: true
+    healthCheckPath: /
+    # Add a PostgreSQL database
+    databases:
+      - name: profit-tracker-db
+        plan: free
+        region: oregon
