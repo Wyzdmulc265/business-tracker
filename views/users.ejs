@@ -1,14 +1,8 @@
-{% extends "base.html" %}
-
-{% block title %}User Management - Profit Tracker{% endblock %}
-
-{% block content %}
 <h1 class="page-header">User Management</h1>
 
 <div class="card">
     <h3>Add Team Member</h3>
-    <form method="POST" action="{{ url_for('add_user') }}" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
-        {{ form.csrf_token }}
+    <form method="POST" action="/user/add" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(200px, 1fr)); gap: 1rem; margin-bottom: 2rem;">
         <div class="form-group" style="margin-bottom: 0;">
             <label for="username">Username</label>
             <input type="text" id="username" name="username" required>
@@ -33,6 +27,8 @@
             <button type="submit" class="btn btn-success">Add User</button>
         </div>
     </form>
+
+    <% if (users && users.length > 0) { %>
     <table class="user-table">
         <thead>
             <tr>
@@ -42,18 +38,33 @@
                 <th>Role</th>
                 <th>Status</th>
                 <th>Created</th>
-    
+                <th>Actions</th>
             </tr>
         </thead>
         <tbody>
-            {% for user in users %}
+            <% users.forEach(function(user) { %>
             <tr>
-                <td>{{ user.id }}</td>
-                <td>{{ user.username }}</td>
-                <td>{{ user.email }}</td>
+                <td><%= user.id %></td>
+                <td><%= user.username %></td>
+                <td><%= user.email %></td>
+                <td><%= user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %></td>
+                <td><%= user.is_active ? 'Active' : 'Inactive' %></td>
+                <td><%= new Date(user.created_at).toLocaleDateString() %></td>
+                <td>
+                    <div class="action-buttons">
+                        <a href="/user/edit/<%= user.id %>" class="btn btn-sm btn-outline">
+                            <i class="fas fa-edit"></i>
+                        </a>
+                        <a href="/user/delete/<%= user.id %>" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure?')">
+                            <i class="fas fa-trash"></i>
+                        </a>
+                    </div>
+                </td>
             </tr>
-        {% endfor %}
-    </tbody>
-</table>
+            <% }); %>
+        </tbody>
+    </table>
+    <% } else { %>
+        <p>No users found.</p>
+    <% } %>
 </div>
-{% endblock %}

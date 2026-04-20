@@ -1,9 +1,9 @@
 services:
   - type: web
     name: profit-tracker
-    env: python
-    buildCommand: pip install -r requirements.txt
-    startCommand: gunicorn app:app
+    env: node
+    buildCommand: npm install
+    startCommand: npm start
     envVars:
       - key: SECRET_KEY
         sync: false
@@ -11,9 +11,10 @@ services:
         fromDatabase:
           name: profit-tracker-db
           property: connectionString
+      - key: NODE_ENV
+        value: production
     autoDeploy: true
     healthCheckPath: /
-    # Add a PostgreSQL database
     databases:
       - name: profit-tracker-db
         plan: free

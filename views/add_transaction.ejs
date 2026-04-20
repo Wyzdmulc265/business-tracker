@@ -1,33 +1,32 @@
-{% extends "base.html" %}
-
-{% block title %}Add Transaction - Profit Tracker{% endblock %}
-
-{% block content %}
 <div class="form-container">
     <h1 class="page-header">Add Transaction</h1>
 
+    <% if (typeof errors !== 'undefined' && errors && errors.length > 0) { %>
+        <div class="alert alert-error">
+            <% errors.forEach(function(err) { %>
+                <div><%= err %></div>
+            <% }); %>
+        </div>
+    <% } %>
+
     <div class="card">
-        <form method="POST" action="{{ url_for('add_transaction') }}" class="transaction-form">
-            {{ form.csrf_token }}
-            
-            <!-- Transaction Type -->
+        <form method="POST" action="/add" class="transaction-form">
             <div class="form-group">
                 <label>Transaction Type *</label>
                 <div class="type-toggle">
-                    <label class="type-option {% if request.form.get('type') != 'expense' %}active{% endif %}">
-                        <input type="radio" name="type" value="sale" {% if request.form.get('type') != 'expense' %}checked{% endif %}>
+                    <label class="type-option active">
+                        <input type="radio" name="type" value="sale" checked>
                         <i class="fas fa-arrow-up"></i>
                         <span>Sale</span>
                     </label>
-                    <label class="type-option {% if request.form.get('type') == 'expense' %}active{% endif %}">
-                        <input type="radio" name="type" value="expense" {% if request.form.get('type') == 'expense' %}checked{% endif %}>
+                    <label class="type-option">
+                        <input type="radio" name="type" value="expense">
                         <i class="fas fa-arrow-down"></i>
                         <span>Expense</span>
                     </label>
                 </div>
             </div>
 
-            <!-- Amount -->
             <div class="form-group">
                 <label for="amount">Amount *</label>
                 <div class="input-group">
@@ -36,31 +35,27 @@
                 </div>
             </div>
 
-            <!-- Category -->
             <div class="form-group">
                 <label for="category_id">Category *</label>
                 <select id="category_id" name="category_id" required class="form-control">
                     <option value="">Select a category</option>
-                    {% for category in categories %}
-                        <option value="{{ category.id }}" {% if request.form.get('category_id')|int == category.id %}selected{% endif %}>{{ category.name }}</option>
-                    {% endfor %}
+                    <% categories.forEach(function(category) { %>
+                        <option value="<%= category.id %>"><%= category.name %></option>
+                    <% }); %>
                 </select>
             </div>
 
-            <!-- Description -->
             <div class="form-group">
                 <label for="description">Description</label>
                 <textarea id="description" name="description" rows="3" placeholder="Optional note about this transaction" class="form-control"></textarea>
             </div>
 
-            <!-- Date -->
             <div class="form-group">
                 <label for="date">Date</label>
-                <input type="date" id="date" name="date" value="{{ today if today else '' }}" class="form-control">
+                <input type="date" id="date" name="date" value="<%= today %>" class="form-control">
                 <small class="form-text">Leave empty for today's date</small>
             </div>
 
-            <!-- Submit -->
             <button type="submit" class="btn btn-success btn-block">
                 <i class="fas fa-plus-circle"></i>
                 Add Transaction
@@ -71,13 +66,11 @@
 
 <script>
     document.addEventListener('DOMContentLoaded', function() {
-        // Set today's date as default if not set
         const dateInput = document.getElementById('date');
         if (!dateInput.value) {
             dateInput.valueAsDate = new Date();
         }
 
-        // Type toggle styling
         const typeOptions = document.querySelectorAll('.type-option input');
         typeOptions.forEach(radio => {
             radio.addEventListener('change', function() {
@@ -87,4 +80,3 @@
         });
     });
 </script>
-{% endblock %}

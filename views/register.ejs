@@ -1,0 +1,50 @@
+<div class="form-container">
+    <h1 class="page-header">Register</h1>
+
+    <div class="card">
+        <% if (errors && errors.length > 0) { %>
+            <div class="alert alert-error">
+                <% errors.forEach(function(err) { %>
+                    <div><%= err %></div>
+                <% }); %>
+            </div>
+        <% } %>
+
+        <form method="POST" action="/register">
+            <div class="form-group">
+                <label for="username">Username *</label>
+                <input type="text" id="username" name="username" class="form-control" placeholder="Enter username" value="<%= formData.username || '' %>" required autofocus>
+            </div>
+
+            <div class="form-group">
+                <label for="email">Email *</label>
+                <input type="email" id="email" name="email" class="form-control" placeholder="Enter email" value="<%= formData.email || '' %>" required>
+            </div>
+
+            <div class="form-group">
+                <label for="business_name">Business Name *</label>
+                <input type="text" id="business_name" name="business_name" class="form-control" placeholder="Enter business name" value="<%= formData.business_name || '' %>" required>
+                <small class="form-text">Your business name must be unique</small>
+            </div>
+
+            <div class="form-group">
+                <label for="password">Password *</label>
+                <input type="password" id="password" name="password" class="form-control" placeholder="Enter password" required minlength="6">
+                <small class="form-text">Must be at least 6 characters</small>
+            </div>
+
+            <div class="form-group">
+                <label for="confirm_password">Confirm Password *</label>
+                <input type="password" id="confirm_password" name="confirm_password" class="form-control" placeholder="Confirm password" required>
+            </div>
+
+            <button type="submit" class="btn btn-success" style="width: 100%;">
+                Register
+            </button>
+        </form>
+        
+        <div class="auth-links">
+            <p>Already have an account? <a href="/login" class="text-link">Login here</a></p>
+        </div>
+    </div>
+</div>

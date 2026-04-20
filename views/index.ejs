@@ -1,0 +1,105 @@
+<div class="page-header">
+    <i class="fas fa-tachometer-alt"></i>
+    Dashboard Overview
+</div>
+
+<div class="dashboard-grid">
+    <div class="card summary-card sales">
+        <i class="fas fa-dollar-sign icon"></i>
+        <h3>Today's Sales</h3>
+        <div class="value">$<%= todaySales.toFixed(2) %></div>
+    </div>
+
+    <div class="card summary-card expenses">
+        <i class="fas fa-credit-card icon"></i>
+        <h3>Today's Expenses</h3>
+        <div class="value">$<%= todayExpenses.toFixed(2) %></div>
+    </div>
+
+    <div class="card summary-card profit">
+        <i class="fas fa-chart-line icon"></i>
+        <h3>Today's Profit</h3>
+        <div class="value">$<%= todayProfit.toFixed(2) %></div>
+    </div>
+
+    <div class="card summary-card sales">
+        <i class="fas fa-calendar-alt icon"></i>
+        <h3>This Month's Sales</h3>
+        <div class="value">$<%= monthSales.toFixed(2) %></div>
+    </div>
+
+    <div class="card summary-card expenses">
+        <i class="fas fa-wallet icon"></i>
+        <h3>This Month's Expenses</h3>
+        <div class="value">$<%= monthExpenses.toFixed(2) %></div>
+    </div>
+
+    <div class="card summary-card profit">
+        <i class="fas fa-coins icon"></i>
+        <h3>This Month's Profit</h3>
+        <div class="value">$<%= monthProfit.toFixed(2) %></div>
+    </div>
+</div>
+
+<div class="card">
+    <h3 style="margin-bottom: 1.5rem; color: var(--gray-900); font-size: 1.25rem; font-weight: 600;">
+        <i class="fas fa-bolt" style="color: var(--primary-color); margin-right: 0.5rem;"></i>
+        Quick Actions
+    </h3>
+    <div class="d-flex" style="gap: 1rem; flex-wrap: wrap;">
+        <% if (!currentUser.isSuperAdmin()) { %>
+        <a href="/add" class="btn btn-primary">
+            <i class="fas fa-plus"></i>
+            Add Transaction
+        </a>
+        <% } %>
+        <a href="/history" class="btn btn-outline">
+            <i class="fas fa-history"></i>
+            View History
+        </a>
+        <a href="/reports" class="btn btn-outline">
+            <i class="fas fa-chart-bar"></i>
+            Generate Report
+        </a>
+        <% if (currentUser.isBusinessAdmin() || currentUser.isSuperAdmin()) { %>
+        <a href="/pending-approvals" class="btn btn-warning">
+            <i class="fas fa-check-circle"></i>
+            Pending Approvals
+        </a>
+        <% } %>
+    </div>
+</div>
+
+<% if (recentTransactions && recentTransactions.length > 0) { %>
+<div class="card" style="margin-top: 1rem;">
+    <h3 style="margin-bottom: 1rem;">Recent Transactions</h3>
+    <div class="table-responsive">
+        <table class="transactions-table">
+            <thead>
+                <tr>
+                    <th>Date</th>
+                    <th>Type</th>
+                    <th>Category</th>
+                    <th>Amount</th>
+                </tr>
+            </thead>
+            <tbody>
+                <% recentTransactions.forEach(function(t) { %>
+                <tr>
+                    <td><%= new Date(t.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %></td>
+                    <td>
+                        <span class="type-badge <%= t.type === 'sale' ? 'type-sale' : 'type-expense' %>">
+                            <%= t.type === 'sale' ? 'Sale' : 'Expense' %>
+                        </span>
+                    </td>
+                    <td><%= t.category ? t.category.name : '-' %></td>
+                    <td class="amount-cell <%= t.type === 'sale' ? 'amount-positive' : 'amount-negative' %>">
+                        <%= t.type === 'sale' ? '+' : '-' %>$<%= t.amount.toFixed(2) %>
+                    </td>
+                </tr>
+                <% }); %>
+            </tbody>
+        </table>
+    </div>
+</div>
+<% } %>
