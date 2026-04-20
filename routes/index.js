@@ -408,6 +408,11 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
 router.get('/profile', isAuthenticated, async (req, res) => {
   const user = await User.findByPk(req.session.userId);
   
+  if (!user) {
+    req.flash.error = ['User not found'];
+    return res.redirect('/');
+  }
+  
   res.render('profile', { user });
 });
 

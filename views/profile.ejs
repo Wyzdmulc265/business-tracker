@@ -1,3 +1,10 @@
+<% 
+const userRoleDisplay = user && user.role ? user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) : 'User';
+const userStatus = user && user.is_active ? 'Active' : 'Inactive';
+const userStatusClass = user && user.is_active ? 'badge-success' : 'badge-danger';
+const memberSince = user && user.created_at ? new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) : 'N/A';
+%>
+
 <h1 class="page-header">
     <i class="fas fa-user-circle"></i>
     My Profile
@@ -25,9 +32,9 @@
                 <i class="fas fa-user"></i>
             </div>
             <div class="profile-info">
-                <h2><%= user.username %></h2>
-                <p><%= user.email %></p>
-                <span class="role-badge role-<%= user.role %>"><%= user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %></span>
+                <h2><%= user ? user.username : 'User' %></h2>
+                <p><%= user ? user.email : '' %></p>
+                <span class="role-badge role-<%= user ? user.role : 'viewer' %>"><%= userRoleDisplay %></span>
             </div>
         </div>
 
@@ -37,21 +44,21 @@
                     <i class="fas fa-envelope"></i>
                     Email
                 </div>
-                <div class="detail-value"><%= user.email %></div>
+                <div class="detail-value"><%= user ? user.email : 'N/A' %></div>
             </div>
             <div class="detail-item">
                 <div class="detail-label">
                     <i class="fas fa-user-tag"></i>
                     Role
                 </div>
-                <div class="detail-value"><%= user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %></div>
+                <div class="detail-value"><%= userRoleDisplay %></div>
             </div>
             <div class="detail-item">
                 <div class="detail-label">
                     <i class="fas fa-calendar-plus"></i>
                     Member Since
                 </div>
-                <div class="detail-value"><%= new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) %></div>
+                <div class="detail-value"><%= memberSince %></div>
             </div>
             <div class="detail-item">
                 <div class="detail-label">
@@ -59,8 +66,8 @@
                     Status
                 </div>
                 <div class="detail-value">
-                    <span class="status-badge <%= user.is_active ? 'badge-success' : 'badge-danger' %>">
-                        <%= user.is_active ? 'Active' : 'Inactive' %>
+                    <span class="status-badge <%= userStatusClass %>">
+                        <%= userStatus %>
                     </span>
                 </div>
             </div>
@@ -78,14 +85,14 @@
                         <i class="fas fa-user"></i>
                         Username
                     </label>
-                    <input type="text" id="username" name="username" class="form-control" value="<%= user.username %>" required>
+                    <input type="text" id="username" name="username" class="form-control" value="<%= user ? user.username : '' %>" required>
                 </div>
                 <div class="form-group">
                     <label for="email">
                         <i class="fas fa-envelope"></i>
                         Email
                     </label>
-                    <input type="email" id="email" name="email" class="form-control" value="<%= user.email %>" required>
+                    <input type="email" id="email" name="email" class="form-control" value="<%= user ? user.email : '' %>" required>
                 </div>
                 <div class="filter-actions">
                     <button type="submit" class="btn btn-primary">

@@ -5,7 +5,7 @@ const connectPgSimple = require('connect-pg-simple');
 const flash = require('connect-flash');
 const path = require('path');
 const { sequelize } = require('./models');
-const routes = require('./routes');
+const routes = require('./routes/index');
 const pgSession = connectPgSimple(session);
 
 const app = express();
@@ -99,6 +99,15 @@ app.use((req, res, next) => {
 });
 
 app.use('/', routes);
+
+// Debug: list all routes
+console.log('\n=== Registered Routes ===');
+router.stack.forEach((r) => {
+  if (r.route && r.route.path) {
+    console.log(r.route.stack[0].method.toUpperCase(), r.route.path);
+  }
+});
+console.log('=======================\n');
 
 app.use((req, res) => {
   res.status(404).send('Not Found');
