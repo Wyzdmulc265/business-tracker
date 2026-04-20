@@ -1,10 +1,12 @@
 require('dotenv').config();
 const express = require('express');
 const session = require('express-session');
+const connectPgSimple = require('connect-pg-simple');
 const flash = require('connect-flash');
 const path = require('path');
 const { sequelize } = require('./models');
 const routes = require('./routes');
+const pgSession = connectPgSimple(session);
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -18,6 +20,10 @@ app.use(express.static(path.join(__dirname, 'static')));
 
 app.use(session({
   secret: process.env.SECRET_KEY || 'profit-tracker-secret-key-2024',
+  store: new pgSession({
+    pool: sequelize.pool,
+    tableName: 'session'
+  }),
   resave: false,
   saveUninitialized: false,
   cookie: {
