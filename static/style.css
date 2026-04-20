@@ -148,15 +148,14 @@ body {
 }
 
 .sidebar-nav a:hover {
-    background: var(--gray-50);
+    background: var(--gray-100);
     color: var(--primary-color);
-    border-right: 3px solid var(--primary-color);
 }
 
 .sidebar-nav a.active {
     background: var(--primary-color);
     color: var(--white);
-    border-right: 3px solid var(--primary-dark);
+    box-shadow: var(--shadow-md);
 }
 
 .sidebar-nav a i {

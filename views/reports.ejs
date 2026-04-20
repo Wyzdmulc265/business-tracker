@@ -22,49 +22,64 @@
     </div>
 </div>
 
-<div class="card chart-container">
-    <h2>Last 7 Days Trend</h2>
-    <div class="chart-bars">
-        <% dailySummary.forEach(function(day) { %>
-            <div class="chart-bar">
-                <div class="bar-value">$<%= Math.round(day.profit) %></div>
-                <div class="bar daily-bar <%= day.profit >= 0 ? 'bar-positive' : 'bar-negative' %>" style="height: <%= day.bar_height %>px;"></div>
-                <div class="bar-label"><%= new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }) %></div>
-            </div>
-        <% }); %>
-    </div>
-    <div class="daily-details">
-        <% dailySummary.forEach(function(day) { %>
-            <div class="daily-detail">
-                <strong><%= new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %></strong><br>
-                Sales: $<%= Math.round(day.sales) %><br>
-                Expenses: $<%= Math.round(day.expenses) %><br>
-                Profit: <span class="daily-profit <%= day.profit >= 0 ? 'profit-positive' : 'profit-negative' %>">$<%= Math.round(day.profit) %></span>
-            </div>
-        <% }); %>
+<div class="nav-tabs">
+    <button class="nav-tab active" data-tab="daily">
+        <i class="fas fa-calendar-day"></i>
+        Daily Trend
+    </button>
+    <button class="nav-tab" data-tab="monthly">
+        <i class="fas fa-calendar-alt"></i>
+        Monthly Summary
+    </button>
+</div>
+
+<div id="daily-tab" class="nav-tab-content active">
+    <div class="card chart-container">
+        <h2>Last 7 Days Trend</h2>
+        <div class="chart-bars">
+            <% dailySummary.forEach(function(day) { %>
+                <div class="chart-bar">
+                    <div class="bar-value">$<%= Math.round(day.profit) %></div>
+                    <div class="bar daily-bar <%= day.profit >= 0 ? 'bar-positive' : 'bar-negative' %>" style="height: <%= day.bar_height %>px;"></div>
+                    <div class="bar-label"><%= new Date(day.date).toLocaleDateString('en-US', { weekday: 'short' }) %></div>
+                </div>
+            <% }); %>
+        </div>
+        <div class="daily-details">
+            <% dailySummary.forEach(function(day) { %>
+                <div class="daily-detail">
+                    <strong><%= new Date(day.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric' }) %></strong><br>
+                    Sales: $<%= Math.round(day.sales) %><br>
+                    Expenses: $<%= Math.round(day.expenses) %><br>
+                    Profit: <span class="daily-profit <%= day.profit >= 0 ? 'profit-positive' : 'profit-negative' %>">$<%= Math.round(day.profit) %></span>
+                </div>
+            <% }); %>
+        </div>
     </div>
 </div>
 
-<div class="card chart-container monthly-chart">
-    <h2>Last 6 Months Summary</h2>
-    <div class="chart-bars">
-        <% monthlyTotals.forEach(function(month) { %>
-            <div class="chart-bar">
-                <div class="bar-value">$<%= Math.round(month.profit) %></div>
-                <div class="bar monthly-bar <%= month.profit >= 0 ? 'bar-positive' : 'bar-negative' %>" style="height: <%= month.bar_height %>px;"></div>
-                <div class="bar-label"><%= month.month.substring(0, 3) %></div>
-            </div>
-        <% }); %>
-    </div>
-    <div class="monthly-details">
-        <% monthlyTotals.forEach(function(month) { %>
-            <div class="monthly-detail">
-                <strong><%= month.month %></strong><br>
-                Sales: $<%= Math.round(month.sales) %><br>
-                Expenses: $<%= Math.round(month.expenses) %><br>
-                Profit: <span class="monthly-profit <%= month.profit >= 0 ? 'profit-positive' : 'profit-negative' %>">$<%= Math.round(month.profit) %></span>
-            </div>
-        <% }); %>
+<div id="monthly-tab" class="nav-tab-content">
+    <div class="card chart-container monthly-chart">
+        <h2>Last 6 Months Summary</h2>
+        <div class="chart-bars">
+            <% monthlyTotals.forEach(function(month) { %>
+                <div class="chart-bar">
+                    <div class="bar-value">$<%= Math.round(month.profit) %></div>
+                    <div class="bar monthly-bar <%= month.profit >= 0 ? 'bar-positive' : 'bar-negative' %>" style="height: <%= month.bar_height %>px;"></div>
+                    <div class="bar-label"><%= month.month.substring(0, 3) %></div>
+                </div>
+            <% }); %>
+        </div>
+        <div class="monthly-details">
+            <% monthlyTotals.forEach(function(month) { %>
+                <div class="monthly-detail">
+                    <strong><%= month.month %></strong><br>
+                    Sales: $<%= Math.round(month.sales) %><br>
+                    Expenses: $<%= Math.round(month.expenses) %><br>
+                    Profit: <span class="monthly-profit <%= month.profit >= 0 ? 'profit-positive' : 'profit-negative' %>">$<%= Math.round(month.profit) %></span>
+                </div>
+            <% }); %>
+        </div>
     </div>
 </div>
 

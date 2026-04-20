@@ -1,15 +1,28 @@
-<h1 class="page-header">Transaction History</h1>
+<h1 class="page-header">
+    <i class="fas fa-history"></i>
+    Transaction History
+</h1>
 
 <div class="card filter-card">
+    <div class="nav-tabs">
+        <a href="/history<%= filterCategory || filterStart || filterEnd ? '?' + (filterCategory ? 'category=' + filterCategory : '') + (filterStart ? '&start_date=' + filterStart : '') + (filterEnd ? '&end_date=' + filterEnd : '') : '' %>" class="nav-tab <%= !filterType ? 'active' : '' %>">
+            <i class="fas fa-list"></i>
+            All
+        </a>
+        <a href="/history?type=sale<%= filterCategory ? '&category=' + filterCategory : '' %><%= filterStart ? '&start_date=' + filterStart : '' %><%= filterEnd ? '&end_date=' + filterEnd : '' %>" class="nav-tab <%= filterType === 'sale' ? 'active' : '' %>">
+            <i class="fas fa-arrow-up"></i>
+            Sales
+        </a>
+        <a href="/history?type=expense<%= filterCategory ? '&category=' + filterCategory : '' %><%= filterStart ? '&start_date=' + filterStart : '' %><%= filterEnd ? '&end_date=' + filterEnd : '' %>" class="nav-tab <%= filterType === 'expense' ? 'active' : '' %>">
+            <i class="fas fa-arrow-down"></i>
+            Expenses
+        </a>
+    </div>
+
     <form method="GET" action="/history" class="filter-form">
         <div class="filter-row">
-            <div class="form-group">
-                <label for="type">Type</label>
-                <select id="type" name="type" class="form-control">
-                    <option value="">All Types</option>
-                    <option value="sale" <%= filterType === 'sale' ? 'selected' : '' %>>Sale</option>
-                    <option value="expense" <%= filterType === 'expense' ? 'selected' : '' %>>Expense</option>
-                </select>
+            <div class="form-group" style="display: none;">
+                <input type="hidden" name="type" value="<%= filterType || '' %>">
             </div>
 
             <div class="form-group">
