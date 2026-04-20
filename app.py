@@ -27,13 +27,15 @@ app.config['SECRET_KEY'] = os.environ.get('SECRET_KEY', 'profit-tracker-secret-k
 app.config['SQLALCHEMY_DATABASE_URI'] = os.environ.get('DATABASE_URL', 'sqlite:///profit_tracker.db')
 app.config['SQLALCHEMY_TRACK_MODIFICATIONS'] = False
 
-port = int(os.environ.get('PORT', 5000))
-app.run(host="0.0.0.0", port=port)
-
 csrf = CSRFProtect(app)
 db = SQLAlchemy(app)
 login_manager.init_app(app)
 login_manager.login_view = 'login'
+
+port = int(os.environ.get('PORT', 5000))
+
+if __name__ == '__main__':
+    app.run(host="0.0.0.0", port=port)
 
 class CSRFTokenForm(FlaskForm):
     csrf_token = HiddenField()
