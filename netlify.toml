@@ -1,0 +1,25 @@
+[build]
+  publish = "build"
+  command = "pip install -r requirements.txt && mkdir -p build && echo '<!DOCTYPE html><html><body>Loading...</body></html>' > build/index.html && cp -r static build/"
+
+[build.environment]
+  PYTHON_VERSION = "3.12"
+
+[[redirects]]
+  from = "/static/*"
+  to = "/static/:splat"
+  status = 200
+
+[[redirects]]
+  from = "/*"
+  to = "/.netlify/functions/hello/:splat"
+  status = 200
+
+[[functions]]
+  from = "netlify/functions/*"
+  to = "{{.Function}}"
+  runtime = "python3.12"
+
+[[env]]
+  key = "SECRET_KEY"
+  value = "CHANGE_ME_IN_NETLIFY_DASHBOARD"
