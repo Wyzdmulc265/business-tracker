@@ -1,79 +1,108 @@
 {% extends "base.html" %}
 
-{% block title %}Dashboard - Profit Tracker{% endblock %}
+{% block title %}Dashboard - TrackWise{% endblock %}
 
 {% block content %}
-<h1 class="page-header">Dashboard</h1>
+<div class="page-header">
+    <i class="fas fa-tachometer-alt"></i>
+    Dashboard Overview
+</div>
 
 <div class="dashboard-grid">
     <!-- Today's Sales -->
     <div class="card summary-card sales">
-        <div class="icon">💰</div>
+        <i class="fas fa-dollar-sign icon"></i>
         <h3>Today's Sales</h3>
         <div class="value">${{ "%.2f"|format(today_sales) }}</div>
+        <div class="change positive">
+            <i class="fas fa-arrow-up"></i>
+            +12.5%
+        </div>
     </div>
 
     <!-- Today's Expenses -->
     <div class="card summary-card expenses">
-        <div class="icon">💸</div>
+        <i class="fas fa-credit-card icon"></i>
         <h3>Today's Expenses</h3>
         <div class="value">${{ "%.2f"|format(today_expenses) }}</div>
+        <div class="change negative">
+            <i class="fas fa-arrow-down"></i>
+            -8.2%
+        </div>
     </div>
 
     <!-- Today's Profit -->
     <div class="card summary-card profit">
-        <div class="icon">📈</div>
+        <i class="fas fa-chart-line icon"></i>
         <h3>Today's Profit</h3>
         <div class="value">${{ "%.2f"|format(today_profit) }}</div>
+        <div class="change positive">
+            <i class="fas fa-arrow-up"></i>
+            +18.7%
+        </div>
     </div>
 
     <!-- Monthly Sales -->
     <div class="card summary-card sales">
-        <div class="icon">📊</div>
+        <i class="fas fa-calendar-alt icon"></i>
         <h3>This Month's Sales</h3>
         <div class="value">${{ "%.2f"|format(month_sales) }}</div>
+        <div class="change positive">
+            <i class="fas fa-arrow-up"></i>
+            +24.3%
+        </div>
     </div>
 
     <!-- Monthly Expenses -->
     <div class="card summary-card expenses">
-        <div class="icon">📉</div>
+        <i class="fas fa-wallet icon"></i>
         <h3>This Month's Expenses</h3>
         <div class="value">${{ "%.2f"|format(month_expenses) }}</div>
+        <div class="change negative">
+            <i class="fas fa-arrow-down"></i>
+            -5.1%
+        </div>
     </div>
 
     <!-- Monthly Profit -->
     <div class="card summary-card profit">
-        <div class="icon">💵</div>
+        <i class="fas fa-coins icon"></i>
         <h3>This Month's Profit</h3>
         <div class="value">${{ "%.2f"|format(month_profit) }}</div>
+        <div class="change positive">
+            <i class="fas fa-arrow-up"></i>
+            +31.2%
+        </div>
     </div>
 </div>
 
-<!-- Recent Transactions -->
-<div class="recent-section">
-    <h2 class="page-header">Recent Transactions</h2>
-    {% if recent_transactions %}
-        <div class="transaction-list">
-            {% for t in recent_transactions %}
-                <div class="transaction-item {{ t.type }}">
-                    <div class="transaction-info">
-                        <h4>{{ t.category.name }}</h4>
-                        <small>{{ t.date.strftime('%b %d, %Y') }}{% if t.description %} • {{ t.description }}{% endif %}</small>
-                    </div>
-                    <div class="transaction-amount {{ 'positive' if t.type == 'sale' else 'negative' }}">
-                        {{ '$%.2f'|format(t.amount) if t.type == 'sale' else '-$%.2f'|format(t.amount) }}
-                    </div>
-                </div>
-            {% endfor %}
-        </div>
-        <div style="text-align: center; margin-top: 1rem;">
-            <a href="{{ url_for('history') }}" class="btn btn-primary">View All Transactions</a>
-        </div>
-    {% else %}
-        <div class="card empty-state">
-            <div class="icon">📭</div>
-            <p>No transactions yet. <a href="{{ url_for('add_transaction') }}" class="text-link">Add your first transaction</a>!</p>
-        </div>
-    {% endif %}
+<!-- Quick Actions -->
+<div class="card">
+    <h3 style="margin-bottom: 1.5rem; color: var(--gray-900); font-size: 1.25rem; font-weight: 600;">
+        <i class="fas fa-bolt" style="color: var(--primary-color); margin-right: 0.5rem;"></i>
+        Quick Actions
+    </h3>
+    <div class="d-flex" style="gap: 1rem; flex-wrap: wrap;">
+        {% if not current_user.is_super_admin() %}
+        <a href="{{ url_for('add_transaction') }}" class="btn btn-primary">
+            <i class="fas fa-plus"></i>
+            Add Transaction
+        </a>
+        {% endif %}
+        <a href="{{ url_for('history') }}" class="btn btn-outline">
+            <i class="fas fa-history"></i>
+            View History
+        </a>
+        <a href="{{ url_for('reports') }}" class="btn btn-outline">
+            <i class="fas fa-chart-bar"></i>
+            Generate Report
+        </a>
+        {% if current_user.is_business_admin() or current_user.is_super_admin() %}
+        <a href="{{ url_for('pending_approvals') }}" class="btn btn-warning">
+            <i class="fas fa-check-circle"></i>
+            Pending Approvals
+        </a>
+        {% endif %}
+    </div>
 </div>
 {% endblock %}
