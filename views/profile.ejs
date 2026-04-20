@@ -1,0 +1,136 @@
+<h1 class="page-header">
+    <i class="fas fa-user-circle"></i>
+    My Profile
+</h1>
+
+<div class="nav-tabs">
+    <button class="nav-tab active" data-tab="view">
+        <i class="fas fa-user"></i>
+        View Profile
+    </button>
+    <button class="nav-tab" data-tab="edit">
+        <i class="fas fa-edit"></i>
+        Edit Profile
+    </button>
+    <button class="nav-tab" data-tab="password">
+        <i class="fas fa-lock"></i>
+        Change Password
+    </button>
+</div>
+
+<div id="view-tab" class="nav-tab-content active">
+    <div class="card">
+        <div class="profile-header">
+            <div class="profile-avatar">
+                <i class="fas fa-user"></i>
+            </div>
+            <div class="profile-info">
+                <h2><%= user.username %></h2>
+                <p><%= user.email %></p>
+                <span class="role-badge role-<%= user.role %>"><%= user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %></span>
+            </div>
+        </div>
+
+        <div class="profile-details">
+            <div class="detail-item">
+                <div class="detail-label">
+                    <i class="fas fa-envelope"></i>
+                    Email
+                </div>
+                <div class="detail-value"><%= user.email %></div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">
+                    <i class="fas fa-user-tag"></i>
+                    Role
+                </div>
+                <div class="detail-value"><%= user.role.replace('_', ' ').replace(/\b\w/g, l => l.toUpperCase()) %></div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">
+                    <i class="fas fa-calendar-plus"></i>
+                    Member Since
+                </div>
+                <div class="detail-value"><%= new Date(user.created_at).toLocaleDateString('en-US', { month: 'long', day: 'numeric', year: 'numeric' }) %></div>
+            </div>
+            <div class="detail-item">
+                <div class="detail-label">
+                    <i class="fas fa-power-off"></i>
+                    Status
+                </div>
+                <div class="detail-value">
+                    <span class="status-badge <%= user.is_active ? 'badge-success' : 'badge-danger' %>">
+                        <%= user.is_active ? 'Active' : 'Inactive' %>
+                    </span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<div id="edit-tab" class="nav-tab-content">
+    <div class="card">
+        <h3>Update Profile Information</h3>
+        <form method="POST" action="/profile/update" class="filter-form">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="username">
+                        <i class="fas fa-user"></i>
+                        Username
+                    </label>
+                    <input type="text" id="username" name="username" class="form-control" value="<%= user.username %>" required>
+                </div>
+                <div class="form-group">
+                    <label for="email">
+                        <i class="fas fa-envelope"></i>
+                        Email
+                    </label>
+                    <input type="email" id="email" name="email" class="form-control" value="<%= user.email %>" required>
+                </div>
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-save"></i>
+                        Save Changes
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>
+
+<div id="password-tab" class="nav-tab-content">
+    <div class="card">
+        <h3>Change Password</h3>
+        <form method="POST" action="/profile/password" class="filter-form">
+            <div class="filter-row">
+                <div class="form-group">
+                    <label for="current_password">
+                        <i class="fas fa-lock"></i>
+                        Current Password
+                    </label>
+                    <input type="password" id="current_password" name="current_password" class="form-control" required>
+                </div>
+                <div class="form-group">
+                    <label for="new_password">
+                        <i class="fas fa-lock"></i>
+                        New Password
+                    </label>
+                    <input type="password" id="new_password" name="new_password" class="form-control" required minlength="6">
+                </div>
+                <div class="form-group">
+                    <label for="confirm_password">
+                        <i class="fas fa-lock"></i>
+                        Confirm New Password
+                    </label>
+                    <input type="password" id="confirm_password" name="confirm_password" class="form-control" required minlength="6">
+                </div>
+                <div class="filter-actions">
+                    <button type="submit" class="btn btn-primary">
+                        <i class="fas fa-key"></i>
+                        Update Password
+                    </button>
+                </div>
+            </div>
+        </form>
+    </div>
+</div>

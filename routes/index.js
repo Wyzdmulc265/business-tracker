@@ -405,6 +405,67 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
   res.redirect('/history');
 });
 
+router.get('/profile', isAuthenticated, async (req, res) => {
+  const user = await User.findByPk(req.session.userId);
+  
+  res.render('profile', { user });
+});
+
+router.post('/profile/update', isAuthenticated, async (req, res) => {
+  const user = await User.findByPk(req.session.userId);
+  const { username, email } = req.body;
+  const errors = [];
+  
+  if (username !== user.username) {
+    const existingUser = await User.findOne({ where: { username } });
+    if (existingUser) errors.push('Username already exists');
+  }
+  
+  if (email !== user.email) {
+    const existingEmail = await User.findOne({ where: { email } });
+    if (existingEmail) errors.push('Email already exists');
+  }
+  
+  if (errors.length > 0) {
+    req.flash.error = errors;
+    return res.redirect('/profile');
+  }
+  
+  user.username = username;
+  user.email = email;
+  await user.save();
+  
+  req.session.userName = username;
+  req.flash.success = 'Profile updated successfully!';
+  res.redirect('/profile');
+});
+
+router.post('/profile/password', isAuthenticated, async (req, res) => {
+  const user = await User.findByPk(req.session.userId);
+  const { current_password, new_password, confirm_password } = req.body;
+  
+  if (!(await user.checkPassword(current_password))) {
+    req.flash.error = ['Current password is incorrect'];
+    return res.redirect('/profile');
+  }
+  
+  if (new_password !== confirm_password) {
+    req.flash.error = ['New passwords do not match'];
+    return res.redirect('/profile');
+  }
+  
+  if (new_password.length < 6) {
+    req.flash.error = ['Password must be at least 6 characters'];
+    return res.redirect('/profile');
+  }
+  
+  user.password_hash = await User.generatePasswordHash(new_password);
+  await user.save();
+  
+  req.flash.success = 'Password changed successfully!';
+  res.redirect('/profile');
+});
+
 router.get('/pending-approvals', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
   const { Transaction } = require('../models');
   
