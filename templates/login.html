@@ -13,7 +13,7 @@
             <p>Sign in to your TrackWise account</p>
         </div>
 
-        <form method="POST" action="{{ url_for('login') }}" class="auth-form">
+<form method="POST" action="{{ url_for('login') }}" class="auth-form">
             {{ form.csrf_token }}
 
             <!-- Username -->
@@ -23,6 +23,11 @@
                     Username
                 </label>
                 {{ form.username(class="form-control", placeholder="Enter your username") }}
+                {% if form.username.errors %}
+                    <div class="form-error">
+                        {% for error in form.username.errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <!-- Password -->
@@ -32,6 +37,11 @@
                     Password
                 </label>
                 {{ form.password(class="form-control", placeholder="Enter your password") }}
+                {% if form.password.errors %}
+                    <div class="form-error">
+                        {% for error in form.password.errors %}{{ error }}{% endfor %}
+                    </div>
+                {% endif %}
             </div>
 
             <!-- Submit -->

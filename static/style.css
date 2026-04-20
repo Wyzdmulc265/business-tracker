@@ -468,6 +468,17 @@ body {
     box-shadow: var(--shadow-md);
 }
 
+.btn-secondary {
+    background: var(--gray-200);
+    color: var(--gray-700);
+}
+
+.btn-secondary:hover {
+    background: var(--gray-300);
+    transform: translateY(-1px);
+    box-shadow: var(--shadow-md);
+}
+
 /* Forms */
 .form-group {
     margin-bottom: 1.5rem;
@@ -1069,3 +1080,206 @@ body {
 .text-2xl { font-size: 1.5rem; }
 .text-3xl { font-size: 1.875rem; }
 .text-4xl { font-size: 2.25rem; }
+
+/* Form Error Messages */
+.form-error {
+    color: var(--danger-color);
+    font-size: 0.8125rem;
+    margin-top: 0.375rem;
+    font-weight: 500;
+}
+
+/* Transaction History Table */
+.transactions-table {
+    width: 100%;
+    border-collapse: collapse;
+}
+
+.transactions-table th {
+    background: var(--gray-50);
+    padding: 1rem;
+    text-align: left;
+    font-weight: 600;
+    color: var(--gray-700);
+    font-size: 0.8125rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    border-bottom: 2px solid var(--gray-200);
+}
+
+.transactions-table td {
+    padding: 1rem;
+    border-bottom: 1px solid var(--gray-200);
+    color: var(--gray-700);
+    vertical-align: middle;
+}
+
+.transactions-table tbody tr:hover {
+    background: var(--gray-50);
+}
+
+.type-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.375rem;
+    padding: 0.375rem 0.75rem;
+    border-radius: var(--radius-lg);
+    font-size: 0.8125rem;
+    font-weight: 600;
+}
+
+.type-sale {
+    background: var(--success-light);
+    color: var(--success-color);
+}
+
+.type-expense {
+    background: var(--danger-light);
+    color: var(--danger-color);
+}
+
+.amount-cell {
+    font-weight: 600;
+    font-family: 'Courier New', monospace;
+}
+
+.amount-positive {
+    color: var(--success-color);
+}
+
+.amount-negative {
+    color: var(--danger-color);
+}
+
+/* Filter Section */
+.filter-card {
+    padding: 1.5rem;
+}
+
+.filter-row {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 1rem;
+    align-items: flex-end;
+}
+
+.filter-row .form-group {
+    flex: 1;
+    min-width: 150px;
+    margin-bottom: 0;
+}
+
+.filter-actions {
+    display: flex;
+    gap: 0.5rem;
+    flex-shrink: 0;
+}
+
+.summary-section {
+    display: flex;
+    justify-content: center;
+    gap: 2rem;
+    padding-top: 1.5rem;
+    margin-top: 1.5rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+.summary-item {
+    display: flex;
+    align-items: center;
+    gap: 0.5rem;
+}
+
+.summary-label {
+    font-weight: 600;
+    color: var(--gray-600);
+}
+
+/* Empty State Icons */
+.empty-icon {
+    font-size: 4rem;
+    color: var(--gray-300);
+    margin-bottom: 1rem;
+}
+
+/* Type Toggle */
+.type-toggle {
+    display: flex;
+    gap: 1rem;
+}
+
+.type-option {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    padding: 1rem;
+    border: 2px solid var(--gray-200);
+    border-radius: var(--radius-lg);
+    cursor: pointer;
+    transition: all var(--transition-fast);
+    font-weight: 600;
+}
+
+.type-option:hover {
+    border-color: var(--gray-300);
+    background: var(--gray-50);
+}
+
+.type-option.active {
+    border-color: var(--primary-color);
+    background: rgba(99, 102, 241, 0.1);
+    color: var(--primary-color);
+}
+
+.type-option input {
+    display: none;
+}
+
+/* Input Group */
+.input-group {
+    display: flex;
+    align-items: stretch;
+}
+
+.input-prefix {
+    padding: 0.875rem 1rem;
+    background: var(--gray-100);
+    border: 2px solid var(--gray-200);
+    border-right: none;
+    border-radius: var(--radius-lg) 0 0 var(--radius-lg);
+    color: var(--gray-500);
+    font-weight: 600;
+}
+
+.input-group .form-control {
+    border-radius: 0 var(--radius-lg) var(--radius-lg) 0;
+}
+
+/* Action Buttons */
+.action-buttons {
+    display: flex;
+    gap: 0.5rem;
+}
+
+.btn-sm {
+    padding: 0.375rem 0.75rem;
+    font-size: 0.8125rem;
+}
+
+.btn-outline {
+    background: transparent;
+    color: var(--primary-color);
+    border: 1px solid var(--primary-color);
+}
+
+.btn-outline:hover {
+    background: var(--primary-color);
+    color: var(--white);
+}
+
+.btn-block {
+    width: 100%;
+    justify-content: center;
+}

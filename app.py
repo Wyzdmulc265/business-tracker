@@ -42,11 +42,11 @@ class LoginForm(FlaskForm):
     csrf_token = HiddenField()
 
 class RegisterForm(FlaskForm):
-    username = StringField('Username', validators=[DataRequired()])
-    email = StringField('Email', validators=[DataRequired()])
-    business_name = StringField('Business Name', validators=[DataRequired()])
-    password = PasswordField('Password', validators=[DataRequired()])
-    confirm_password = PasswordField('Confirm Password', validators=[DataRequired()])
+    username = StringField('Username', validators=[DataRequired(message="Username is required")])
+    email = StringField('Email', validators=[DataRequired(message="Email is required")])
+    business_name = StringField('Business Name', validators=[DataRequired(message="Business name is required")])
+    password = PasswordField('Password', validators=[DataRequired(message="Password is required")])
+    confirm_password = PasswordField('Confirm Password', validators=[DataRequired(message="Please confirm your password")])
     csrf_token = HiddenField()
 
 # User Settings Forms
@@ -209,61 +209,62 @@ def register():
         return redirect(url_for('dashboard'))
     
     form = RegisterForm()
-    if request.method == 'POST' and form.validate_on_submit():
-        username = form.username.data
-        email = form.email.data
-        business_name = form.business_name.data
-        password = form.password.data
-        confirm_password = form.confirm_password.data
+    if request.method == 'POST':
+        # Manually validate form to show field errors
+        if form.validate_on_submit():
+            username = form.username.data
+            email = form.email.data
+            business_name = form.business_name.data
+            password = form.password.data
+            confirm_password = form.confirm_password.data
+            
+            errors = []
+            
+            if User.query.filter_by(username=username).first():
+                form.username.errors.append('Username already exists')
+            if User.query.filter_by(email=email).first():
+                form.email.errors.append('Email already exists')
+            if Business.query.filter_by(name=business_name).first():
+                form.business_name.errors.append('Business name already registered. Please choose a different name.')
+            if password != confirm_password:
+                form.confirm_password.errors.append('Passwords do not match')
+            if len(password) < 6:
+                form.password.errors.append('Password must be at least 6 characters')
+            
+            if not form.username.errors and not form.email.errors and not form.business_name.errors and not form.password.errors and not form.confirm_password.errors:
+                # Create business first
+                business = Business(name=business_name)
+                db.session.add(business)
+                db.session.flush()  # Get business ID
+                
+                # Create default categories for business
+                sale_categories = ['Product Sales', 'Services', 'Digital Products', 'Other Income']
+                expense_categories = ['Inventory/Stock', 'Rent', 'Utilities', 'Transport', 'Marketing', 'Supplies', 'Salaries', 'Other Expense']
+                
+                for name in sale_categories:
+                    cat = Category(name=name, type='sale', business_id=business.id)
+                    db.session.add(cat)
+                for name in expense_categories:
+                    cat = Category(name=name, type='expense', business_id=business.id)
+                    db.session.add(cat)
+                
+                # Create business admin user
+                from werkzeug.security import generate_password_hash
+                user = User(
+                    username=username,
+                    email=email,
+                    password_hash=generate_password_hash(password),
+                    role=ROLE_BUSINESS_ADMIN,
+                    business_id=business.id
+                )
+                db.session.add(user)
+                db.session.commit()
+                
+                flash('Registration successful! Your business has been created. Please log in.', 'success')
+                return redirect(url_for('login'))
         
-        errors = []
-        
-        if User.query.filter_by(username=username).first():
-            errors.append('Username already exists')
-        if User.query.filter_by(email=email).first():
-            errors.append('Email already exists')
-        if Business.query.filter_by(name=business_name).first():
-            errors.append('Business name already registered. Please choose a different name.')
-        if password != confirm_password:
-            errors.append('Passwords do not match')
-        if len(password) < 6:
-            errors.append('Password must be at least 6 characters')
-        
-        if errors:
-            for error in errors:
-                flash(error, 'error')
-            return render_template('register.html', form=form)
-        
-        # Create business first
-        business = Business(name=business_name)
-        db.session.add(business)
-        db.session.flush()  # Get business ID
-        
-        # Create default categories for business
-        sale_categories = ['Product Sales', 'Services', 'Digital Products', 'Other Income']
-        expense_categories = ['Inventory/Stock', 'Rent', 'Utilities', 'Transport', 'Marketing', 'Supplies', 'Salaries', 'Other Expense']
-        
-        for name in sale_categories:
-            cat = Category(name=name, type='sale', business_id=business.id)
-            db.session.add(cat)
-        for name in expense_categories:
-            cat = Category(name=name, type='expense', business_id=business.id)
-            db.session.add(cat)
-        
-        # Create business admin user
-        from werkzeug.security import generate_password_hash
-        user = User(
-            username=username,
-            email=email,
-            password_hash=generate_password_hash(password),
-            role=ROLE_BUSINESS_ADMIN,
-            business_id=business.id
-        )
-        db.session.add(user)
-        db.session.commit()
-        
-        flash('Registration successful! Your business has been created. Please log in.', 'success')
-        return redirect(url_for('login'))
+        # Validate basic required fields for displaying errors
+        form.validate()
     
     return render_template('register.html', form=form)
 
