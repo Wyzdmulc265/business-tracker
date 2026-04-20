@@ -21,14 +21,14 @@
 
         <nav class="sidebar-nav">
             <ul>
-                <% if (currentUser && currentUser.isAuthenticated()) { %>
+                <% if (userName) { %>
                     <li>
                         <a href="/" class="<%= currentPath === '/' ? 'active' : '' %>">
                             <i class="fas fa-tachometer-alt"></i>
                             <span>Dashboard</span>
                         </a>
                     </li>
-                    <% if (!currentUser.isSuperAdmin()) { %>
+                    <% if (userRole !== 'super_admin') { %>
                     <li>
                         <a href="/add" class="<%= currentPath === '/add' ? 'active' : '' %>">
                             <i class="fas fa-plus-circle"></i>
@@ -48,7 +48,7 @@
                             <span>Reports</span>
                         </a>
                     </li>
-                    <% if (currentUser.isBusinessAdmin() || currentUser.isSuperAdmin()) { %>
+                    <% if ((userRole === 'business_admin' || userRole === 'super_admin')) { %>
                     <li>
                         <a href="/pending-approvals" class="<%= currentPath === '/pending-approvals' ? 'active' : '' %>">
                             <i class="fas fa-check-circle"></i>
@@ -56,7 +56,7 @@
                         </a>
                     </li>
                     <% } %>
-                    <% if (currentUser.isBusinessAdmin() || currentUser.isSuperAdmin()) { %>
+                    <% if ((userRole === 'business_admin' || userRole === 'super_admin')) { %>
                     <li>
                         <a href="/users" class="<%= currentPath === '/users' ? 'active' : '' %>">
                             <i class="fas fa-users"></i>
@@ -69,7 +69,7 @@
         </nav>
 
         <div class="sidebar-footer">
-            <% if (currentUser && currentUser.isAuthenticated()) { %>
+            <% if (userName) { %>
                 <div class="user-profile">
                     <div class="user-avatar">
                         <i class="fas fa-user"></i>
@@ -94,8 +94,8 @@
             </button>
 
             <div class="header-actions">
-                <% if (currentUser && currentUser.isAuthenticated()) { %>
-                    <% if (!currentUser.isSuperAdmin()) { %>
+                <% if (userName) { %>
+                    <% if (userRole !== 'super_admin') { %>
                     <a href="/profile" class="btn btn-outline">
                         <i class="fas fa-user-edit"></i>
                         Profile
