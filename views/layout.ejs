@@ -159,16 +159,25 @@
             const sidebarOverlay = document.getElementById('sidebarOverlay');
             const mainContent = document.getElementById('mainContent');
 
+            const isSidebarOpen = localStorage.getItem('sidebarOpen') === 'true';
+            if (isSidebarOpen) {
+                sidebar.classList.add('active');
+                sidebarOverlay.classList.add('active');
+                mainContent.classList.add('sidebar-active');
+            }
+
             function toggleSidebar() {
-                sidebar.classList.toggle('active');
+                const isActive = sidebar.classList.toggle('active');
                 sidebarOverlay.classList.toggle('active');
                 mainContent.classList.toggle('sidebar-active');
+                localStorage.setItem('sidebarOpen', isActive);
             }
 
             function closeSidebar() {
                 sidebar.classList.remove('active');
                 sidebarOverlay.classList.remove('active');
                 mainContent.classList.remove('sidebar-active');
+                localStorage.setItem('sidebarOpen', 'false');
             }
 
             sidebarToggle.addEventListener('click', toggleSidebar);

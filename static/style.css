@@ -713,19 +713,6 @@ body {
 }
 
 /* Responsive Design */
-@media (min-width: 1024px) {
-    .sidebar {
-        transform: translateX(0);
-    }
-    
-    .main-content {
-        margin-left: var(--sidebar-width);
-    }
-    
-    .sidebar-toggle {
-        display: none;
-    }
-}
 
 @media (max-width: 768px) {
     .page-content {

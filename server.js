@@ -40,7 +40,7 @@ const sessionConfig = {
   cookie: {
     maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
-    secure: false, // Allow HTTP for local development
+    secure: process.env.NODE_ENV === 'production', // Secure cookies in production
     sameSite: 'lax'
   }
 };
@@ -100,14 +100,16 @@ app.use((req, res, next) => {
 
 app.use('/', routes);
 
-// Debug: list all routes
-console.log('\n=== Registered Routes ===');
-router.stack.forEach((r) => {
-  if (r.route && r.route.path) {
-    console.log(r.route.stack[0].method.toUpperCase(), r.route.path);
-  }
-});
-console.log('=======================\n');
+// Debug: list all routes (only in development)
+if (process.env.NODE_ENV !== 'production') {
+  console.log('\n=== Registered Routes ===');
+  routes.stack.forEach((r) => {
+    if (r.route && r.route.path) {
+      console.log(r.route.stack[0].method.toUpperCase(), r.route.path);
+    }
+  });
+  console.log('=======================\n');
+}
 
 app.use((req, res) => {
   res.status(404).send('Not Found');
@@ -117,7 +119,9 @@ async function initDatabase() {
   let retries = 5;
   while (retries > 0) {
     try {
-      await sequelize.sync({ alter: true });
+      // Use alter: true in production, force: true in development
+      const syncOptions = process.env.NODE_ENV === 'production' ? { alter: true } : { force: true };
+      await sequelize.sync(syncOptions);
       console.log('Database synchronized');
       
       const { User } = require('./models');
