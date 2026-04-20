@@ -1,23 +1,28 @@
-<h1 class="page-header">Reports & Analytics</h1>
+<h1 class="page-header">
+    <i class="fas fa-chart-bar"></i>
+    Reports & Analytics
+</h1>
 
-<div class="reports-grid">
-    <div class="report-card">
-        <h3>Total Sales</h3>
-        <div class="value positive">$<%= totalSales.toFixed(2) %></div>
-    </div>
-    <div class="report-card">
-        <h3>Total Expenses</h3>
-        <div class="value negative">$<%= totalExpenses.toFixed(2) %></div>
-    </div>
-    <div class="report-card">
-        <h3>Net Profit</h3>
-        <div class="value <%= totalProfit >= 0 ? 'positive' : 'negative' %>">
-            $<%= totalProfit.toFixed(2) %>
+<div class="card">
+    <div class="reports-grid">
+        <div class="report-card">
+            <h3>Total Sales</h3>
+            <div class="value positive">$<%= totalSales.toFixed(2) %></div>
+        </div>
+        <div class="report-card">
+            <h3>Total Expenses</h3>
+            <div class="value negative">$<%= totalExpenses.toFixed(2) %></div>
+        </div>
+        <div class="report-card">
+            <h3>Net Profit</h3>
+            <div class="value <%= totalProfit >= 0 ? 'positive' : 'negative' %>">
+                $<%= totalProfit.toFixed(2) %>
+            </div>
         </div>
     </div>
 </div>
 
-<div class="chart-container">
+<div class="card chart-container">
     <h2>Last 7 Days Trend</h2>
     <div class="chart-bars">
         <% dailySummary.forEach(function(day) { %>
@@ -40,7 +45,7 @@
     </div>
 </div>
 
-<div class="chart-container monthly-chart">
+<div class="card chart-container monthly-chart">
     <h2>Last 6 Months Summary</h2>
     <div class="chart-bars">
         <% monthlyTotals.forEach(function(month) { %>
@@ -63,6 +68,9 @@
     </div>
 </div>
 
-<div class="additional-stats">
-    <a href="/history" class="btn btn-primary">View Full Transaction History</a>
+<div class="card additional-stats">
+    <a href="/history" class="btn btn-primary">
+        <i class="fas fa-history"></i>
+        View Full Transaction History
+    </a>
 </div>

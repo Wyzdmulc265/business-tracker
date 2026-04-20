@@ -1283,3 +1283,121 @@ body {
     width: 100%;
     justify-content: center;
 }
+
+/* Reports UI */
+.reports-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+    gap: 1.5rem;
+    margin-bottom: 2rem;
+}
+
+.report-card {
+    background: var(--white);
+    border-radius: var(--radius-xl);
+    padding: 2rem;
+    box-shadow: var(--shadow-lg);
+    border: 1px solid var(--gray-200);
+    text-align: center;
+    transition: all var(--transition-normal);
+}
+
+.report-card:hover {
+    transform: translateY(-2px);
+    box-shadow: var(--shadow-xl);
+}
+
+.report-card h3 {
+    color: var(--gray-600);
+    font-size: 0.875rem;
+    text-transform: uppercase;
+    font-weight: 600;
+    margin-bottom: 1rem;
+    letter-spacing: 0.05em;
+}
+
+.report-card .value {
+    font-size: 2.5rem;
+    font-weight: 700;
+    margin-bottom: 0;
+}
+
+.report-card .value.positive {
+    color: var(--success-color);
+}
+
+.report-card .value.negative {
+    color: var(--danger-color);
+}
+
+.daily-details,
+.monthly-details {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 1rem;
+    margin-top: 1.5rem;
+    padding-top: 1.5rem;
+    border-top: 1px solid var(--gray-200);
+}
+
+.daily-detail,
+.monthly-detail {
+    text-align: center;
+    font-size: 0.8125rem;
+    color: var(--gray-600);
+    padding: 0.75rem;
+    background: var(--gray-50);
+    border-radius: var(--radius-lg);
+}
+
+.daily-profit,
+.monthly-profit {
+    font-weight: 600;
+}
+
+.profit-positive {
+    color: var(--success-color);
+}
+
+.profit-negative {
+    color: var(--danger-color);
+}
+
+.monthly-chart {
+    margin-bottom: 2rem;
+}
+
+.additional-stats {
+    text-align: center;
+    padding: 2rem 0;
+}
+
+/* Responsive Reports */
+@media (max-width: 768px) {
+    .reports-grid {
+        grid-template-columns: 1fr;
+    }
+    
+    .chart-bars {
+        height: auto;
+        flex-direction: column;
+        align-items: center;
+    }
+    
+    .chart-bar {
+        flex-direction: row;
+        width: 100%;
+        max-width: 100%;
+        gap: 1rem;
+    }
+    
+    .bar {
+        height: 40px;
+        width: auto;
+        min-width: 50px;
+    }
+    
+    .bar-label {
+        margin-top: 0;
+    }
+}
