@@ -23,7 +23,7 @@ let sessionStore;
 if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgres') && process.env.NODE_ENV === 'production') {
   const pool = new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: { rejectUnauthorized: false }
+    ssl: true
   });
   sessionStore = new pgSession({
     pool: pool,
