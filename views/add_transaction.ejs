@@ -64,19 +64,4 @@
     </div>
 </div>
 
-<script>
-    document.addEventListener('DOMContentLoaded', function() {
-        const dateInput = document.getElementById('date');
-        if (!dateInput.value) {
-            dateInput.valueAsDate = new Date();
-        }
-
-        const typeOptions = document.querySelectorAll('.type-option input');
-        typeOptions.forEach(radio => {
-            radio.addEventListener('change', function() {
-                document.querySelectorAll('.type-option').forEach(opt => opt.classList.remove('active'));
-                this.closest('.type-option').classList.add('active');
-            });
-        });
-    });
-</script>
+<script src="/add_transaction.js"></script>
