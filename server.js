@@ -4,6 +4,7 @@ const session = require('express-session');
 const connectPgSimple = require('connect-pg-simple');
 const flash = require('connect-flash');
 const path = require('path');
+const { Pool } = require('pg');
 const { sequelize } = require('./models');
 const routes = require('./routes/index');
 const pgSession = connectPgSimple(session);
@@ -20,14 +21,11 @@ app.use(express.static(path.join(__dirname, 'static')));
 
 let sessionStore;
 if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgres') && process.env.NODE_ENV === 'production') {
-  const poolConfig = {
-    ...sequelize.pool,
-    ssl: process.env.NODE_ENV === 'production' ? true : {
-      rejectUnauthorized: false
-    }
-  };
+  const pool = new Pool({
+    connectionString: process.env.DATABASE_URL
+  });
   sessionStore = new pgSession({
-    pool: poolConfig,
+    pool: pool,
     tableName: 'session',
     createTableIfMissing: true
   });
