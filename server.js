@@ -22,7 +22,8 @@ app.use(express.static(path.join(__dirname, 'static')));
 let sessionStore;
 if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgres') && process.env.NODE_ENV === 'production') {
   const pool = new Pool({
-    connectionString: process.env.DATABASE_URL
+    connectionString: process.env.DATABASE_URL,
+    ssl: { rejectUnauthorized: false }
   });
   sessionStore = new pgSession({
     pool: pool,
