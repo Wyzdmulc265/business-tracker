@@ -1,4 +1,4 @@
-const { DataTypes } = require('sequelize');
+const { DataTypes, Op } = require('sequelize');
 const bcrypt = require('bcryptjs');
 
 const sequelize = require('../config/database');
@@ -193,6 +193,24 @@ const Transaction = sequelize.define('Transaction', {
   approval_status: {
     type: DataTypes.STRING(20),
     defaultValue: 'approved'
+  },
+  inventory_item_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'inventory_item',
+      key: 'id'
+    }
+  },
+  quantity: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 1
+  },
+  unit_cost: {
+    type: DataTypes.FLOAT,
+    allowNull: true,
+    defaultValue: 0
   }
 }, {
   tableName: 'transaction',
@@ -201,13 +219,141 @@ const Transaction = sequelize.define('Transaction', {
   updatedAt: false
 });
 
+const InventoryItem = sequelize.define('InventoryItem', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  business_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'business',
+      key: 'id'
+    }
+  },
+  name: {
+    type: DataTypes.STRING(120),
+    allowNull: false
+  },
+  sku: {
+    type: DataTypes.STRING(60),
+    allowNull: false,
+    unique: 'inventory_business_sku_unique'
+  },
+  description: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  },
+  unit_cost: {
+    type: DataTypes.FLOAT,
+    allowNull: false,
+    defaultValue: 0
+  },
+  quantity_on_hand: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
+  low_stock_threshold: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    defaultValue: 0
+  },
+  is_active: {
+    type: DataTypes.BOOLEAN,
+    defaultValue: true
+  },
+  last_stocked_at: {
+    type: DataTypes.DATE,
+    allowNull: true
+  }
+}, {
+  tableName: 'inventory_item',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: 'updated_at'
+});
+
+const InventoryMovement = sequelize.define('InventoryMovement', {
+  id: {
+    type: DataTypes.INTEGER,
+    primaryKey: true,
+    autoIncrement: true
+  },
+  inventory_item_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'inventory_item',
+      key: 'id'
+    }
+  },
+  business_id: {
+    type: DataTypes.INTEGER,
+    allowNull: false,
+    references: {
+      model: 'business',
+      key: 'id'
+    }
+  },
+  transaction_id: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'transaction',
+      key: 'id'
+    }
+  },
+  movement_type: {
+    type: DataTypes.STRING(20),
+    allowNull: false
+  },
+  quantity: {
+    type: DataTypes.INTEGER,
+    allowNull: false
+  },
+  unit_cost: {
+    type: DataTypes.FLOAT,
+    allowNull: false,
+    defaultValue: 0
+  },
+  total_cost: {
+    type: DataTypes.FLOAT,
+    allowNull: false,
+    defaultValue: 0
+  },
+  created_by: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+    references: {
+      model: 'user',
+      key: 'id'
+    }
+  },
+  notes: {
+    type: DataTypes.STRING(255),
+    allowNull: true
+  }
+}, {
+  tableName: 'inventory_movement',
+  timestamps: true,
+  createdAt: 'created_at',
+  updatedAt: false
+});
+
 Business.hasMany(User, { foreignKey: 'business_id', as: 'users' });
 Business.hasMany(Category, { foreignKey: 'business_id', as: 'categories' });
 Business.hasMany(Transaction, { foreignKey: 'business_id', as: 'transactions' });
+Business.hasMany(InventoryItem, { foreignKey: 'business_id', as: 'inventoryItems' });
+Business.hasMany(InventoryMovement, { foreignKey: 'business_id', as: 'inventoryMovements' });
 
 User.belongsTo(Business, { foreignKey: 'business_id', as: 'business' });
 Category.belongsTo(Business, { foreignKey: 'business_id', as: 'business' });
 Transaction.belongsTo(Business, { foreignKey: 'business_id', as: 'business' });
+InventoryItem.belongsTo(Business, { foreignKey: 'business_id', as: 'business' });
+InventoryMovement.belongsTo(Business, { foreignKey: 'business_id', as: 'business' });
 
 Category.hasMany(Transaction, { foreignKey: 'category_id', as: 'transactions' });
 Transaction.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
@@ -215,8 +361,19 @@ Transaction.belongsTo(Category, { foreignKey: 'category_id', as: 'category' });
 User.hasMany(Transaction, { foreignKey: 'created_by', as: 'createdTransactions' });
 Transaction.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
+InventoryItem.hasMany(Transaction, { foreignKey: 'inventory_item_id', as: 'transactions' });
+Transaction.belongsTo(InventoryItem, { foreignKey: 'inventory_item_id', as: 'inventoryItem' });
+
+InventoryItem.hasMany(InventoryMovement, { foreignKey: 'inventory_item_id', as: 'movements' });
+InventoryMovement.belongsTo(InventoryItem, { foreignKey: 'inventory_item_id', as: 'inventoryItem' });
+
+Transaction.hasMany(InventoryMovement, { foreignKey: 'transaction_id', as: 'inventoryMovements' });
+InventoryMovement.belongsTo(Transaction, { foreignKey: 'transaction_id', as: 'transaction' });
+
+User.hasMany(InventoryMovement, { foreignKey: 'created_by', as: 'inventoryMovements' });
+InventoryMovement.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
+
 async function getSumByTypeAndDate(transType, targetDate, businessId = null) {
-  const { Op } = require('sequelize');
   const where = {
     type: transType,
     date: targetDate instanceof Date ? targetDate.toISOString().split('T')[0] : targetDate,
@@ -232,7 +389,6 @@ async function getSumByTypeAndDate(transType, targetDate, businessId = null) {
 }
 
 async function getSumByTypeAndDateRange(transType, startDate, endDate, businessId = null) {
-  const { Op } = require('sequelize');
   const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
   const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
   
@@ -253,12 +409,140 @@ async function getSumByTypeAndDateRange(transType, startDate, endDate, businessI
   return result || 0;
 }
 
+async function getLowStockItems(businessId = null) {
+  const where = {};
+  if (businessId) {
+    where.business_id = businessId;
+  }
+
+  const items = await InventoryItem.findAll({
+    where,
+    order: [['name', 'ASC']]
+  });
+
+  return items.filter(item => {
+    const threshold = Number(item.low_stock_threshold || 0);
+    const quantity = Number(item.quantity_on_hand || 0);
+    return threshold > 0 && quantity <= threshold;
+  });
+}
+
+async function getInventoryValuation(businessId = null) {
+  const where = {};
+  if (businessId) {
+    where.business_id = businessId;
+  }
+
+  const items = await InventoryItem.findAll({
+    where,
+    attributes: ['quantity_on_hand', 'unit_cost']
+  });
+
+  return items.reduce((total, item) => {
+    const quantity = Number(item.quantity_on_hand || 0);
+    const unitCost = Number(item.unit_cost || 0);
+    return total + (quantity * unitCost);
+  }, 0);
+}
+
+async function getInventorySummary(businessId = null) {
+  const [lowStockItems, valuation, items] = await Promise.all([
+    getLowStockItems(businessId),
+    getInventoryValuation(businessId),
+    InventoryItem.findAll({
+      where: businessId ? { business_id: businessId } : {},
+      order: [['name', 'ASC']]
+    })
+  ]);
+
+  return {
+    items,
+    lowStockItems,
+    lowStockCount: lowStockItems.length,
+    valuation,
+    totalItems: items.length
+  };
+}
+
+async function applyInventoryTransactionImpact(transaction, options = {}) {
+  if (!transaction || !transaction.inventory_item_id) {
+    return null;
+  }
+
+  const item = await InventoryItem.findByPk(transaction.inventory_item_id);
+  if (!item) {
+    return null;
+  }
+
+  const quantity = Math.abs(Number(transaction.quantity || 0));
+  if (!quantity) {
+    return null;
+  }
+
+  const reverse = Boolean(options.reverse);
+  const actorId = options.actorId || transaction.created_by || null;
+  const note = options.note || null;
+
+  let delta = 0;
+  if (transaction.type === 'sale') {
+    delta = -quantity;
+  } else if (transaction.type === 'expense') {
+    delta = quantity;
+  } else {
+    return null;
+  }
+
+  if (reverse) {
+    delta *= -1;
+  }
+
+  const currentQty = Number(item.quantity_on_hand || 0);
+  const currentUnitCost = Number(item.unit_cost || 0);
+  const movementUnitCost = Number(transaction.unit_cost || currentUnitCost || 0);
+
+  if (delta > 0) {
+    const totalCurrentValue = currentQty * currentUnitCost;
+    const totalIncomingValue = delta * movementUnitCost;
+    const nextQty = currentQty + delta;
+
+    item.quantity_on_hand = nextQty;
+    if (movementUnitCost > 0) {
+      item.unit_cost = nextQty > 0 ? (totalCurrentValue + totalIncomingValue) / nextQty : movementUnitCost;
+    }
+    item.last_stocked_at = new Date();
+  } else {
+    item.quantity_on_hand = Math.max(0, currentQty + delta);
+  }
+
+  await item.save();
+
+  await InventoryMovement.create({
+    inventory_item_id: item.id,
+    business_id: item.business_id,
+    transaction_id: transaction.id || null,
+    movement_type: reverse ? 'reversal' : (delta > 0 ? 'purchase' : 'sale'),
+    quantity: delta,
+    unit_cost: movementUnitCost,
+    total_cost: Math.abs(delta) * movementUnitCost,
+    created_by: actorId,
+    notes: note || (reverse ? 'Inventory movement reversed' : null)
+  });
+
+  return item;
+}
+
 module.exports = {
   sequelize,
   Business,
   Category,
   User,
   Transaction,
+  InventoryItem,
+  InventoryMovement,
   getSumByTypeAndDate,
-  getSumByTypeAndDateRange
+  getSumByTypeAndDateRange,
+  getLowStockItems,
+  getInventoryValuation,
+  getInventorySummary,
+  applyInventoryTransactionImpact
 };

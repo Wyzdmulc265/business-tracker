@@ -118,8 +118,8 @@ async function initDatabase() {
   let retries = 5;
   while (retries > 0) {
     try {
-      // Use alter: true in production, force: true in development
-      const syncOptions = process.env.NODE_ENV === 'production' ? { alter: true } : { force: true };
+      // Avoid wiping data on restart; only force-reset when explicitly requested.
+      const syncOptions = process.env.DB_SYNC_FORCE === 'true' ? { force: true } : { alter: true };
       await sequelize.sync(syncOptions);
       console.log('Database synchronized');
       
@@ -127,7 +127,6 @@ async function initDatabase() {
       const userCount = await User.count();
       
       if (userCount === 0) {
-        const { User } = require('./models');
         const passwordHash = await User.generatePasswordHash('admin123');
         await User.create({
           username: 'superadmin',

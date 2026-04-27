@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { body, validationResult } = require('express-validator');
-const { User, Business, Category } = require('../models');
+const { User, Business, Category, InventoryItem, getInventorySummary, getLowStockItems, applyInventoryTransactionImpact } = require('../models');
 
 const TRANSACTION_TYPE_SALE = 'sale';
 const TRANSACTION_TYPE_EXPENSE = 'expense';
@@ -42,8 +42,54 @@ function isBusinessAdmin(req) {
   return req.session.userRole === ROLE_BUSINESS_ADMIN;
 }
 
+function canManageTransaction(req, transaction) {
+  if (!req.session.userId || !transaction) {
+    return false;
+  }
+
+  if (isSuperAdmin(req)) {
+    return true;
+  }
+
+  if (transaction.business_id !== req.session.businessId) {
+    return false;
+  }
+
+  if (req.session.userRole === ROLE_BUSINESS_ADMIN) {
+    return true;
+  }
+
+  if (req.session.userRole === ROLE_ACCOUNTANT) {
+    return transaction.created_by === req.session.userId;
+  }
+
+  return false;
+}
+
 router.use((req, res, next) => {
-  req.flash = { error: [], success: [] };
+  if (typeof req.flash === 'function') {
+    const flash = req.flash.bind(req);
+    req.flash = new Proxy(flash, {
+      apply(target, thisArg, args) {
+        return Reflect.apply(target, thisArg, args);
+      },
+      get(target, prop, receiver) {
+        if (prop === 'error' || prop === 'success') {
+          return flash(prop);
+        }
+        return Reflect.get(target, prop, receiver);
+      },
+      set(target, prop, value) {
+        if (prop === 'error' || prop === 'success') {
+          const messages = Array.isArray(value) ? value : [value];
+          messages.filter(Boolean).forEach((message) => flash(prop, message));
+          return true;
+        }
+        target[prop] = value;
+        return true;
+      }
+    });
+  }
   next();
 });
 
@@ -73,9 +119,14 @@ router.post('/login', async (req, res) => {
 });
 
 router.get('/logout', (req, res) => {
-  req.session.destroy();
-  req.flash = { success: ['Logged out successfully!'] };
-  res.redirect('/login');
+  req.session.userId = null;
+  req.session.userRole = null;
+  req.session.businessId = null;
+  req.session.userName = null;
+  req.flash.success = 'Logged out successfully!';
+  req.session.save(() => {
+    res.redirect('/login');
+  });
 });
 
 router.get('/register', async (req, res) => {
@@ -184,21 +235,24 @@ router.get('/', isAuthenticated, async (req, res) => {
 });
 
 router.get('/add', isAuthenticated, async (req, res) => {
-  const { Category } = require('../models');
+  const { Category, InventoryItem } = require('../models');
   let categories;
+  let inventoryItems;
   
   if (isSuperAdmin(req)) {
     categories = await Category.findAll();
+    inventoryItems = await InventoryItem.findAll({ order: [['name', 'ASC']] });
   } else {
     categories = await Category.findAll({ where: { business_id: req.session.businessId } });
+    inventoryItems = await InventoryItem.findAll({ where: { business_id: req.session.businessId }, order: [['name', 'ASC']] });
   }
   
   const today = new Date().toISOString().split('T')[0];
-  res.render('add_transaction', { categories, today, currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) } });
+  res.render('add_transaction', { categories, inventoryItems, today, currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) } });
 });
 
 router.post('/add', isAuthenticated, async (req, res) => {
-  const { type, amount, category_id, description, date: transDate } = req.body;
+  const { type, amount, category_id, description, date: transDate, inventory_item_id, quantity, unit_cost } = req.body;
   const errors = [];
   
   if (!type || !['sale', 'expense'].includes(type)) {
@@ -233,13 +287,16 @@ router.post('/add', isAuthenticated, async (req, res) => {
   
   if (errors.length > 0) {
     let categories;
+    let inventoryItems;
     if (isSuperAdmin(req)) {
       categories = await Category.findAll();
+      inventoryItems = await InventoryItem.findAll({ order: [['name', 'ASC']] });
     } else {
       categories = await Category.findAll({ where: { business_id: req.session.businessId } });
+      inventoryItems = await InventoryItem.findAll({ where: { business_id: req.session.businessId }, order: [['name', 'ASC']] });
     }
     const today = new Date().toISOString().split('T')[0];
-    return res.render('add_transaction', { categories, today, errors, currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) } });
+    return res.render('add_transaction', { categories, inventoryItems, today, errors, currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) } });
   }
   
   const requiresApproval = req.session.userRole === ROLE_ACCOUNTANT;
@@ -248,6 +305,9 @@ router.post('/add', isAuthenticated, async (req, res) => {
   const { Transaction } = require('../models');
   await Transaction.create({
     type,
+    inventory_item_id: inventory_item_id ? Number(inventory_item_id) : null,
+    quantity: quantity !== undefined ? Number(quantity) : null,
+    unit_cost: unit_cost !== undefined ? Number(unit_cost) : null,
     amount: amountVal,
     category_id: categoryIdVal,
     business_id: isSuperAdmin(req) ? category.business_id : req.session.businessId,
@@ -281,7 +341,7 @@ router.get('/history', isAuthenticated, async (req, res) => {
   if (start_date) where.date = { ...where.date, [require('sequelize').Op.gte]: new Date(start_date) };
   if (end_date) where.date = { ...where.date, [require('sequelize').Op.lte]: new Date(end_date) };
   
-  const transactions = await Transaction.findAll({
+  const rawTransactions = await Transaction.findAll({
     where,
     order: [['date', 'DESC'], ['created_at', 'DESC']],
     include: [
@@ -289,6 +349,11 @@ router.get('/history', isAuthenticated, async (req, res) => {
       { model: require('../models').User, as: 'creator' }
     ]
   });
+  
+  const transactions = rawTransactions.map((transaction) => ({
+    ...transaction.get({ plain: true }),
+    canManage: canManageTransaction(req, transaction)
+  }));
   
   let categories;
   if (isSuperAdmin(req)) {
@@ -312,42 +377,65 @@ router.get('/delete/:id', isAuthenticated, async (req, res) => {
   const { Transaction } = require('../models');
   const transaction = await Transaction.findByPk(req.params.id);
   
-  if (transaction) {
-    await transaction.destroy();
-    req.flash.success = 'Transaction deleted successfully!';
+  if (!transaction) {
+    req.flash.error = 'Transaction not found.';
+    return res.redirect('/history');
   }
   
+  if (!canManageTransaction(req, transaction)) {
+    req.flash.error = 'You do not have permission to delete this transaction.';
+    return res.redirect('/history');
+  }
+  
+  await transaction.destroy();
+  req.flash.success = 'Transaction deleted successfully!';
   res.redirect('/history');
 });
 
 router.get('/edit/:id', isAuthenticated, async (req, res) => {
-  const { Transaction, Category: Cat } = require('../models');
+  const { Transaction, Category: Cat, InventoryItem } = require('../models');
   const transaction = await Transaction.findByPk(req.params.id);
   
   if (!transaction) {
+    req.flash.error = 'Transaction not found.';
+    return res.redirect('/history');
+  }
+  
+  if (!canManageTransaction(req, transaction)) {
+    req.flash.error = 'You do not have permission to edit this transaction.';
     return res.redirect('/history');
   }
   
   let categories;
+  let inventoryItems;
   if (isSuperAdmin(req)) {
     categories = await Cat.findAll();
+    inventoryItems = await InventoryItem.findAll({ order: [['name', 'ASC']] });
   } else {
     categories = await Cat.findAll({ where: { business_id: req.session.businessId } });
+    inventoryItems = await InventoryItem.findAll({ where: { business_id: req.session.businessId }, order: [['name', 'ASC']] });
   }
   
   res.render('edit_transaction', {
     transaction,
     categories,
+    inventoryItems,
     currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) }
   });
 });
 
 router.post('/edit/:id', isAuthenticated, async (req, res) => {
-  const { type, amount, category_id, description, date: transDate } = req.body;
+  const { type, amount, category_id, description, date: transDate, inventory_item_id, quantity, unit_cost } = req.body;
   const { Transaction, Category: Cat } = require('../models');
   const transaction = await Transaction.findByPk(req.params.id);
   
   if (!transaction) {
+    req.flash.error = 'Transaction not found.';
+    return res.redirect('/history');
+  }
+  
+  if (!canManageTransaction(req, transaction)) {
+    req.flash.error = 'You do not have permission to edit this transaction.';
     return res.redirect('/history');
   }
   
@@ -380,12 +468,15 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
   
   if (errors.length > 0) {
     let categories;
+    let inventoryItems;
     if (isSuperAdmin(req)) {
       categories = await Cat.findAll();
+      inventoryItems = await InventoryItem.findAll({ order: [['name', 'ASC']] });
     } else {
       categories = await Cat.findAll({ where: { business_id: req.session.businessId } });
+      inventoryItems = await InventoryItem.findAll({ where: { business_id: req.session.businessId }, order: [['name', 'ASC']] });
     }
-    return res.render('edit_transaction', { transaction, categories, errors, currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) } });
+    return res.render('edit_transaction', { transaction, categories, inventoryItems, errors, currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) } });
   }
   
   transaction.type = type;
@@ -732,6 +823,75 @@ router.post('/user/add', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROL
   
   req.flash.success = 'User added successfully!';
   res.redirect('/users');
+});
+
+router.get('/inventory', isAuthenticated, async (req, res) => {
+  const businessId = req.session.businessId || null;
+  const where = businessId ? { business_id: businessId } : {};
+  const [summary, lowStockItems, inventoryItems] = await Promise.all([
+    getInventorySummary(businessId),
+    getLowStockItems(businessId),
+    InventoryItem.findAll({
+      where,
+      order: [['name', 'ASC']]
+    })
+  ]);
+  res.render('inventory', {
+    title: 'Inventory Tracker',
+    summary,
+    lowStockItems,
+    inventoryItems
+  });
+});
+
+router.post('/inventory/items', isAuthenticated, async (req, res) => {
+  const { name, sku, unit_cost, quantity_on_hand, low_stock_threshold } = req.body;
+  const businessId = req.session.businessId || null;
+
+  await InventoryItem.create({
+    name: name?.trim(),
+    sku: sku?.trim(),
+    unit_cost: Number(unit_cost || 0),
+    quantity_on_hand: Number(quantity_on_hand || 0),
+    low_stock_threshold: Number(low_stock_threshold || 0),
+    business_id: businessId
+  });
+
+  req.flash('success', 'Inventory item created successfully.');
+  res.redirect('/inventory');
+});
+
+router.get('/inventory/export.csv', isAuthenticated, async (req, res) => {
+  const businessId = req.session.businessId || null;
+  const where = businessId ? { business_id: businessId } : {};
+  const items = await InventoryItem.findAll({
+    where,
+    order: [['name', 'ASC']]
+  });
+
+  const escapeCsv = (value) => `"${String(value ?? '').replace(/"/g, '""')}"`;
+  const rows = [
+    ['Name', 'SKU', 'Quantity On Hand', 'Unit Cost', 'Low Stock Threshold', 'Total Value', 'Status'],
+    ...items.map((item) => {
+      const quantity = Number(item.quantity_on_hand || 0);
+      const unitCost = Number(item.unit_cost || 0);
+      const threshold = Number(item.low_stock_threshold || 0);
+      const status = threshold > 0 && quantity <= threshold ? 'Low stock' : 'OK';
+      return [
+        item.name,
+        item.sku,
+        quantity,
+        unitCost.toFixed(2),
+        threshold,
+        (quantity * unitCost).toFixed(2),
+        status
+      ];
+    })
+  ];
+
+  res.setHeader('Content-Type', 'text/csv; charset=utf-8');
+  res.setHeader('Content-Disposition', 'attachment; filename="inventory-report.csv"');
+  res.send(rows.map((row) => row.map(escapeCsv).join(',')).join('\n'));
 });
 
 module.exports = router;

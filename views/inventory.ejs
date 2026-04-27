@@ -1,0 +1,150 @@
+<div class="page-header-row">
+    <div>
+        <h1 class="page-header"><i class="fas fa-boxes"></i> Inventory Tracker</h1>
+        <p class="page-subtitle">Track stock levels, low-stock alerts, and inventory valuation.</p>
+    </div>
+    <div class="page-actions">
+        <a class="btn btn-secondary" href="/inventory/export.csv">
+            <i class="fas fa-file-csv"></i> Export CSV
+        </a>
+        <a class="btn btn-primary" href="/add">
+            <i class="fas fa-plus"></i> Add Transaction
+        </a>
+    </div>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-cubes"></i></div>
+        <div class="stat-content">
+            <h3>Total Items</h3>
+            <p><%= (summary && summary.totalItems) || 0 %></p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-exclamation-triangle"></i></div>
+        <div class="stat-content">
+            <h3>Low Stock Items</h3>
+            <p><%= (summary && summary.lowStockCount) || 0 %></p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-dollar-sign"></i></div>
+        <div class="stat-content">
+            <h3>Total Value</h3>
+            <p>$<%= Number((summary && summary.totalValue) || 0).toFixed(2) %></p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-warehouse"></i></div>
+        <div class="stat-content">
+            <h3>On Hand</h3>
+            <p><%= (summary && summary.totalQuantity) || 0 %></p>
+        </div>
+    </div>
+</div>
+
+<div class="content-grid">
+    <div class="card">
+        <div class="card-header">
+            <h2>Add Inventory Item</h2>
+        </div>
+
+        <form method="POST" action="/inventory/items" class="form-grid">
+            <div class="form-group">
+                <label for="name">Item Name *</label>
+                <input type="text" id="name" name="name" required placeholder="e.g. Printer Paper">
+            </div>
+
+            <div class="form-group">
+                <label for="sku">SKU *</label>
+                <input type="text" id="sku" name="sku" required placeholder="e.g. PAPER-A4-001">
+            </div>
+
+            <div class="form-group">
+                <label for="unit_cost">Unit Cost *</label>
+                <input type="number" id="unit_cost" name="unit_cost" step="0.01" min="0" required placeholder="0.00">
+            </div>
+
+            <div class="form-group">
+                <label for="quantity_on_hand">Quantity On Hand *</label>
+                <input type="number" id="quantity_on_hand" name="quantity_on_hand" min="0" required placeholder="0">
+            </div>
+
+            <div class="form-group">
+                <label for="low_stock_threshold">Low Stock Threshold *</label>
+                <input type="number" id="low_stock_threshold" name="low_stock_threshold" min="0" required placeholder="5">
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="btn btn-primary">
+                    <i class="fas fa-save"></i> Save Item
+                </button>
+            </div>
+        </form>
+    </div>
+
+    <div class="card">
+        <div class="card-header">
+            <h2>Low Stock Alerts</h2>
+        </div>
+
+        <% if (lowStockItems && lowStockItems.length > 0) { %>
+            <div class="alert-list">
+                <% lowStockItems.forEach(function(item) { %>
+                    <div class="alert alert-warning">
+                        <strong><%= item.name %></strong>
+                        <span>SKU: <%= item.sku %></span>
+                        <span>Remaining: <%= item.quantity_on_hand %></span>
+                        <span>Threshold: <%= item.low_stock_threshold %></span>
+                    </div>
+                <% }); %>
+            </div>
+        <% } else { %>
+            <div class="empty-state">
+                <i class="fas fa-check-circle"></i>
+                <p>No low stock items right now.</p>
+            </div>
+        <% } %>
+    </div>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h2>Inventory Items</h2>
+    </div>
+
+    <% if (inventoryItems && inventoryItems.length > 0) { %>
+        <div class="table-responsive">
+            <table class="data-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>SKU</th>
+                        <th>Unit Cost</th>
+                        <th>Qty On Hand</th>
+                        <th>Low Stock Threshold</th>
+                        <th>Value</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% inventoryItems.forEach(function(item) { %>
+                        <tr>
+                            <td><%= item.name %></td>
+                            <td><%= item.sku %></td>
+                            <td>$<%= Number(item.unit_cost || 0).toFixed(2) %></td>
+                            <td><%= item.quantity_on_hand || 0 %></td>
+                            <td><%= item.low_stock_threshold || 0 %></td>
+                            <td>$<%= Number((item.unit_cost || 0) * (item.quantity_on_hand || 0)).toFixed(2) %></td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    <% } else { %>
+        <div class="empty-state">
+            <i class="fas fa-box-open"></i>
+            <p>No inventory items have been added yet.</p>
+        </div>
+    <% } %>
+</div>
