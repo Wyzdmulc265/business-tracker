@@ -71,6 +71,10 @@ app.use(session(sessionConfig));
 
 app.use(flash());
 
+app.get('/healthz', (req, res) => {
+  res.status(200).json({ status: 'ok' });
+});
+
 // CSRF protection middleware - must come after session
 const csrfProtection = csrf({ cookie: false });
 

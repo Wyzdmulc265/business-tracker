@@ -73,6 +73,7 @@
     </div>
 
     <form method="POST" action="/settings/business/update" class="form-container" style="margin-top: 0; padding-top: 1rem;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
         <% if (canSwitchBusiness) { %>
             <input type="hidden" name="business_id" value="<%= selectedBusinessIdValue %>">
         <% } %>
@@ -150,6 +151,7 @@
                         <tr>
                             <td>
                                 <form method="POST" action="/settings/categories/<%= category.id %>/update" class="inline-form" style="gap: 0.5rem; flex-wrap: wrap;">
+                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                     <input type="text" name="name" value="<%= category.name %>" class="form-control" style="min-width: 220px;" required>
                             </td>
                             <td>
@@ -170,6 +172,7 @@
                                 </form>
 
                                 <form method="POST" action="/settings/categories/<%= category.id %>/delete" onsubmit="return confirm('Delete this category? Transactions using it may be affected.');">
+                                    <input type="hidden" name="_csrf" value="<%= csrfToken %>">
                                     <% if (canSwitchBusiness) { %>
                                         <input type="hidden" name="business_id" value="<%= selectedBusinessIdValue %>">
                                     <% } %>
