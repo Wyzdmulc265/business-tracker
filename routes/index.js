@@ -390,6 +390,10 @@ router.get('/history', isAuthenticated, async (req, res) => {
     totalPages,
     hasNextPage: currentPage < totalPages,
     hasPreviousPage: currentPage > 1,
+    filterCategory: category ? parseInt(category) : '',
+    filterType: type || '',
+    filterStart: start_date || '',
+    filterEnd: end_date || '',
     currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) }
   });
 });

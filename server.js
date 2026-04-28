@@ -157,9 +157,15 @@ async function initDatabase() {
   while (retries > 0) {
     try {
       // Avoid wiping data on restart; only force-reset when explicitly requested.
-      const syncOptions = process.env.DB_SYNC_FORCE === 'true' ? { force: true } : { alter: true };
+      // NOTE: `alter: true` can fail on SQLite (FK/DDL limitations). Use `sync()` without `alter`
+      // for SQLite, but keep `alter: true` for Postgres deployments.
+      const isSqlite = sequelize.getDialect && sequelize.getDialect() === 'sqlite';
+      const syncOptions = process.env.DB_SYNC_FORCE === 'true'
+        ? { force: true }
+        : (isSqlite ? {} : { alter: true });
+
       await sequelize.sync(syncOptions);
-      console.log('Database synchronized');
+      console.log(`Database synchronized (${isSqlite ? 'sqlite' : 'postgres'})`);
       
       const { User } = require('./models');
       const userCount = await User.count();
