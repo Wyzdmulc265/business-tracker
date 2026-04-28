@@ -71,6 +71,18 @@
                         </a>
                     </li>
                     <% } %>
+                    <li>
+                        <a href="/settings" class="<%= currentPath === '/settings' ? 'active' : '' %>">
+                            <i class="fas fa-cog"></i>
+                            <span>Settings</span>
+                        </a>
+                    </li>
+                    <li>
+                        <a href="/logout">
+                            <i class="fas fa-sign-out-alt"></i>
+                            <span>Logout</span>
+                        </a>
+                    </li>
                 <% } %>
             </ul>
         </nav>

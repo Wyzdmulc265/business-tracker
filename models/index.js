@@ -455,11 +455,15 @@ async function getInventorySummary(businessId = null) {
     })
   ]);
 
+  const totalQuantity = items.reduce((sum, item) => sum + Number(item.quantity_on_hand || 0), 0);
+
   return {
     items,
     lowStockItems,
     lowStockCount: lowStockItems.length,
     valuation,
+    totalValue: valuation,
+    totalQuantity,
     totalItems: items.length
   };
 }

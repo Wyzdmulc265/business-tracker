@@ -1,8 +1,9 @@
 <h1 class="page-header">Edit User</h1>
 
-<div class="card">
-    <form method="POST" action="/user/edit/<%= user.id %>">
-        <div class="form-group">
+    <div class="card">
+        <form method="POST" action="/user/edit/<%= user.id %>">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <div class="form-group">
             <label for="username">Username</label>
             <input type="text" id="username" name="username" value="<%= user.username %>" required>
         </div>

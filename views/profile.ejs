@@ -109,6 +109,7 @@ const memberSince = user && user.created_at ? new Date(user.created_at).toLocale
     <div class="card">
         <h3>Change Password</h3>
         <form method="POST" action="/profile/password" class="filter-form">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <div class="filter-row">
                 <div class="form-group">
                     <label for="current_password">

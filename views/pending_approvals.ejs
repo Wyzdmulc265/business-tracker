@@ -32,8 +32,14 @@
                             <td><%= transaction.creator ? transaction.creator.username : '-' %></td>
                             <td>
                                 <div class="action-buttons">
-                                    <a href="/approve/<%= transaction.id %>" class="btn btn-sm btn-success">Approve</a>
-                                    <a href="/reject/<%= transaction.id %>" class="btn btn-sm btn-danger" onclick="return confirm('Are you sure you want to reject this transaction?')">Reject</a>
+                                    <form method="POST" action="/approve/<%= transaction.id %>" style="display: inline;">
+                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                        <button type="submit" class="btn btn-sm btn-success">Approve</button>
+                                    </form>
+                                    <form method="POST" action="/reject/<%= transaction.id %>" style="display: inline;" onsubmit="return confirm('Are you sure you want to reject this transaction?')">
+                                        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+                                        <button type="submit" class="btn btn-sm btn-danger">Reject</button>
+                                    </form>
                                     <a href="/edit/<%= transaction.id %>" class="btn btn-sm btn-primary">Edit</a>
                                 </div>
                             </td>

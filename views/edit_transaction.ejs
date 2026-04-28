@@ -11,6 +11,7 @@
 
     <div class="card">
         <form method="POST" action="/edit/<%= transaction.id %>">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
             <div class="form-group">
                 <label>Transaction Type *</label>
                 <div class="form-radio-group">
@@ -35,7 +36,7 @@
                 <select id="category_id" name="category_id" required>
                     <option value="">Select a category</option>
                     <% categories.forEach(function(category) { %>
-                        <option value="<%= category.id %>" <%= category.id === transaction.category_id ? 'selected' : '' %>>
+                        <option value="<%= category.id %>" data-category-type="<%= category.type %>" <%= category.id === transaction.category_id ? 'selected' : '' %>>
                             <%= category.name %>
                         </option>
                     <% }); %>

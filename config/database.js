@@ -1,6 +1,6 @@
 const { Sequelize } = require('sequelize');
 
-const databaseUrl = process.env.DATABASE_URL || 'sqlite::memory:';
+const databaseUrl = process.env.DATABASE_URL || 'sqlite:database.sqlite';
 
 const sequelize = new Sequelize(databaseUrl, {
   dialect: databaseUrl.includes('postgres') ? 'postgres' : 'sqlite',

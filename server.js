@@ -3,11 +3,20 @@ const express = require('express');
 const session = require('express-session');
 const connectPgSimple = require('connect-pg-simple');
 const flash = require('connect-flash');
+const cookieParser = require('cookie-parser');
+const csrf = require('csurf');
+const rateLimit = require('express-rate-limit');
 const path = require('path');
 const { Pool } = require('pg');
 const { sequelize } = require('./models');
 const routes = require('./routes/index');
 const pgSession = connectPgSimple(session);
+
+// Validate required environment variables
+if (!process.env.SECRET_KEY) {
+  console.error('ERROR: SECRET_KEY is required in .env file');
+  process.exit(1);
+}
 
 const app = express();
 const PORT = process.env.PORT || 5000;
@@ -17,7 +26,17 @@ app.set('views', path.join(__dirname, 'views'));
 
 app.use(express.urlencoded({ extended: true }));
 app.use(express.json());
+app.use(cookieParser());
 app.use(express.static(path.join(__dirname, 'static')));
+
+// Rate limiting for login attempts
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: 'Too many login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 let sessionStore;
 if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgres') && process.env.NODE_ENV === 'production') {
@@ -33,13 +52,13 @@ if (process.env.DATABASE_URL && process.env.DATABASE_URL.includes('postgres') &&
 }
 
 const sessionConfig = {
-  secret: process.env.SECRET_KEY || 'profit-tracker-secret-key-2024',
+  secret: process.env.SECRET_KEY,
   resave: false,
   saveUninitialized: false,
   cookie: {
     maxAge: 1000 * 60 * 60 * 24,
     httpOnly: true,
-    secure: process.env.NODE_ENV === 'production', // Secure cookies in production
+    secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax'
   }
 };
@@ -52,6 +71,19 @@ app.use(session(sessionConfig));
 
 app.use(flash());
 
+// CSRF protection middleware - must come after session
+const csrfProtection = csrf({ cookie: false });
+
+// Apply CSRF protection to all routes except public auth routes
+app.use((req, res, next) => {
+  // Skip CSRF for login, register, and logout
+  if (['/login', '/register', '/logout'].includes(req.path)) {
+    return next();
+  }
+  csrfProtection(req, res, next);
+});
+
+// Custom render wrapper
 const originalRender = express.response.render;
 express.response.render = function(view, options, callback) {
   const res = this;
@@ -76,6 +108,7 @@ express.response.render = function(view, options, callback) {
   });
 };
 
+// Set up locals - comes after CSRF middleware so req.csrfToken exists on protected routes
 app.use((req, res, next) => {
   res.locals.currentPath = req.path;
   res.locals.currentUser = req.session.userId ? {
@@ -93,6 +126,7 @@ app.use((req, res, next) => {
   
   res.locals.userName = req.session.userName || '';
   res.locals.userRole = req.session.userRole || '';
+  res.locals.csrfToken = req.csrfToken ? req.csrfToken() : '';
   
   next();
 });

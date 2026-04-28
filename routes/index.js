@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const rateLimit = require('express-rate-limit');
 const { body, validationResult } = require('express-validator');
 const { User, Business, Category, InventoryItem, getInventorySummary, getLowStockItems, applyInventoryTransactionImpact } = require('../models');
 
@@ -12,6 +13,15 @@ const ROLE_ACCOUNTANT = 'accountant';
 const ROLE_VIEWER = 'viewer';
 
 const MAX_BAR_HEIGHT = 150;
+
+// Rate limiting for login attempts
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000, // 15 minutes
+  max: 5, // limit each IP to 5 requests per windowMs
+  message: 'Too many login attempts, please try again later.',
+  standardHeaders: true,
+  legacyHeaders: false
+});
 
 function roleRequired(roles) {
   return (req, res, next) => {
@@ -100,7 +110,7 @@ router.get('/login', async (req, res) => {
   res.render('login', { errors: [], formData: {} });
 });
 
-router.post('/login', async (req, res) => {
+router.post('/login', loginLimiter, async (req, res) => {
   const { username, password } = req.body;
   
   const user = await User.findOne({ where: { username } });
@@ -301,13 +311,13 @@ router.post('/add', isAuthenticated, async (req, res) => {
   
   const requiresApproval = req.session.userRole === ROLE_ACCOUNTANT;
   const approvalStatus = requiresApproval ? 'pending' : 'approved';
-  
-  const { Transaction } = require('../models');
-  await Transaction.create({
+
+  const { Transaction, applyInventoryTransactionImpact } = require('../models');
+  const transaction = await Transaction.create({
     type,
     inventory_item_id: inventory_item_id ? Number(inventory_item_id) : null,
-    quantity: quantity !== undefined ? Number(quantity) : null,
-    unit_cost: unit_cost !== undefined ? Number(unit_cost) : null,
+    quantity: quantity !== undefined ? Number(quantity) : 1,
+    unit_cost: unit_cost !== undefined ? Number(unit_cost) : 0,
     amount: amountVal,
     category_id: categoryIdVal,
     business_id: isSuperAdmin(req) ? category.business_id : req.session.businessId,
@@ -317,7 +327,11 @@ router.post('/add', isAuthenticated, async (req, res) => {
     requires_approval: requiresApproval,
     approval_status: approvalStatus
   });
-  
+
+  if (!requiresApproval && transaction.inventory_item_id) {
+    await applyInventoryTransactionImpact(transaction, { actorId: req.session.userId });
+  }
+
   if (requiresApproval) {
     req.flash.success = 'Transaction submitted for admin approval.';
   } else {
@@ -327,8 +341,10 @@ router.post('/add', isAuthenticated, async (req, res) => {
 });
 
 router.get('/history', isAuthenticated, async (req, res) => {
-  const { type, category, start_date, end_date } = req.query;
+  const { type, category, start_date, end_date, page = 1 } = req.query;
   const { Transaction, Category: Cat } = require('../models');
+  const pageSize = 25; // Items per page
+  const offset = (parseInt(page) - 1) * pageSize;
   
   let where = {};
   
@@ -341,9 +357,11 @@ router.get('/history', isAuthenticated, async (req, res) => {
   if (start_date) where.date = { ...where.date, [require('sequelize').Op.gte]: new Date(start_date) };
   if (end_date) where.date = { ...where.date, [require('sequelize').Op.lte]: new Date(end_date) };
   
-  const rawTransactions = await Transaction.findAll({
+  const { count, rows: rawTransactions } = await Transaction.findAndCountAll({
     where,
     order: [['date', 'DESC'], ['created_at', 'DESC']],
+    limit: pageSize,
+    offset,
     include: [
       { model: Cat, as: 'category' },
       { model: require('../models').User, as: 'creator' }
@@ -362,18 +380,21 @@ router.get('/history', isAuthenticated, async (req, res) => {
     categories = await Cat.findAll({ where: { business_id: req.session.businessId } });
   }
   
+  const totalPages = Math.ceil(count / pageSize);
+  const currentPage = parseInt(page);
+  
   res.render('history', {
     transactions,
     categories,
-    filterType: type || '',
-    filterCategory: category || '',
-    filterStart: start_date || '',
-    filterEnd: end_date || '',
+    currentPage,
+    totalPages,
+    hasNextPage: currentPage < totalPages,
+    hasPreviousPage: currentPage > 1,
     currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) }
   });
 });
 
-router.get('/delete/:id', isAuthenticated, async (req, res) => {
+router.post('/delete/:id', isAuthenticated, async (req, res) => {
   const { Transaction } = require('../models');
   const transaction = await Transaction.findByPk(req.params.id);
   
@@ -390,6 +411,19 @@ router.get('/delete/:id', isAuthenticated, async (req, res) => {
   await transaction.destroy();
   req.flash.success = 'Transaction deleted successfully!';
   res.redirect('/history');
+});
+
+router.get('/delete/:id', isAuthenticated, async (req, res) => {
+  // GET endpoint for displaying delete confirmation if needed
+  const { Transaction } = require('../models');
+  const transaction = await Transaction.findByPk(req.params.id);
+  
+  if (!transaction || !canManageTransaction(req, transaction)) {
+    req.flash.error = 'Transaction not found or you do not have permission to delete it.';
+    return res.redirect('/history');
+  }
+  
+  res.render('delete_transaction_confirm', { transaction });
 });
 
 router.get('/edit/:id', isAuthenticated, async (req, res) => {
@@ -479,20 +513,39 @@ router.post('/edit/:id', isAuthenticated, async (req, res) => {
     return res.render('edit_transaction', { transaction, categories, inventoryItems, errors, currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) } });
   }
   
+  const hadInventoryItem = transaction.inventory_item_id;
+  const oldInventoryItemId = transaction.inventory_item_id;
+  const oldQuantity = transaction.quantity;
+
   transaction.type = type;
   transaction.amount = amountVal;
   transaction.category_id = categoryIdVal;
   transaction.description = description;
   transaction.date = transDateVal;
-  
+  transaction.inventory_item_id = inventory_item_id ? Number(inventory_item_id) : null;
+  transaction.quantity = quantity !== undefined ? Number(quantity) : 1;
+  transaction.unit_cost = unit_cost !== undefined ? Number(unit_cost) : 0;
+
   if (req.session.userRole === ROLE_ACCOUNTANT) {
     transaction.approval_status = 'pending';
     req.flash.success = 'Transaction updated and submitted for re-approval.';
   } else {
     req.flash.success = 'Transaction updated successfully!';
   }
-  
+
   await transaction.save();
+
+  const { applyInventoryTransactionImpact } = require('../models');
+  if (transaction.inventory_item_id && transaction.approval_status === 'approved') {
+    if (hadInventoryItem && oldInventoryItemId !== transaction.inventory_item_id) {
+      await applyInventoryTransactionImpact(
+        { ...transaction.get({ plain: true }), inventory_item_id: oldInventoryItemId, quantity: oldQuantity, type: transaction.type, created_by: transaction.created_by },
+        { actorId: req.session.userId, reverse: true, note: 'Reversed due to inventory item change' }
+      );
+    }
+    await applyInventoryTransactionImpact(transaction, { actorId: req.session.userId });
+  }
+
   res.redirect('/history');
 });
 
@@ -586,7 +639,7 @@ router.get('/pending-approvals', isAuthenticated, roleRequired([ROLE_BUSINESS_AD
   });
 });
 
-router.get('/approve/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+router.post('/approve/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
   const { Transaction } = require('../models');
   const transaction = await Transaction.findByPk(req.params.transaction_id);
   
@@ -595,6 +648,7 @@ router.get('/approve/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSIN
     return res.redirect('/pending-approvals');
   }
   
+  // Ensure business data isolation
   if (!isSuperAdmin(req) && transaction.business_id !== req.session.businessId) {
     req.flash.error = 'You do not have permission to approve this transaction.';
     return res.redirect('/');
@@ -602,11 +656,23 @@ router.get('/approve/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSIN
   
   transaction.approval_status = 'approved';
   await transaction.save();
+  
+  // Apply inventory impact when approved
+  if (transaction.inventory_item_id) {
+    const { applyInventoryTransactionImpact } = require('../models');
+    await applyInventoryTransactionImpact(transaction, { actorId: req.session.userId });
+  }
+  
   req.flash.success = 'Transaction approved successfully!';
   res.redirect('/pending-approvals');
 });
 
-router.get('/reject/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+router.get('/approve/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+  // GET endpoint redirects to pending approvals - POST is the action
+  res.redirect('/pending-approvals');
+});
+
+router.post('/reject/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
   const { Transaction } = require('../models');
   const transaction = await Transaction.findByPk(req.params.transaction_id);
   
@@ -615,6 +681,7 @@ router.get('/reject/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSINE
     return res.redirect('/pending-approvals');
   }
   
+  // Ensure business data isolation
   if (!isSuperAdmin(req) && transaction.business_id !== req.session.businessId) {
     req.flash.error = 'You do not have permission to reject this transaction.';
     return res.redirect('/');
@@ -626,35 +693,65 @@ router.get('/reject/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSINE
   res.redirect('/pending-approvals');
 });
 
+router.get('/reject/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+  // GET endpoint redirects to pending approvals - POST is the action
+  res.redirect('/pending-approvals');
+});
+
 router.get('/reports', isAuthenticated, async (req, res) => {
   const today = new Date();
   today.setHours(0, 0, 0, 0);
   
   const businessId = isSuperAdmin(req) ? null : req.session.businessId;
+  const { Op } = require('sequelize');
+  const { Transaction } = require('../models');
   
-  const { getSumByTypeAndDate, getSumByTypeAndDateRange } = require('../models');
-  
+  // Build date ranges for daily and monthly summaries
   const dailySummary = [];
+  const monthlyTotals = [];
   let dailyMax = 1;
+  let monthlyMax = 1;
   
+  // Get all daily transactions for the last 7 days
+  const sevenDaysAgo = new Date(today);
+  sevenDaysAgo.setDate(today.getDate() - 6);
+  
+  const dailyTransactions = await Transaction.findAll({
+    where: {
+      ...(businessId && { business_id: businessId }),
+      date: { [Op.gte]: sevenDaysAgo },
+      approval_status: 'approved'
+    },
+    attributes: ['date', 'type', 'amount'],
+    raw: true,
+    order: [['date', 'ASC']]
+  });
+  
+  // Group daily transactions by date
+  const dailyMap = {};
+  dailyTransactions.forEach(t => {
+    const dateStr = new Date(t.date).toISOString().split('T')[0];
+    if (!dailyMap[dateStr]) {
+      dailyMap[dateStr] = { sales: 0, expenses: 0 };
+    }
+    if (t.type === 'sale') {
+      dailyMap[dateStr].sales += parseFloat(t.amount || 0);
+    } else if (t.type === 'expense') {
+      dailyMap[dateStr].expenses += parseFloat(t.amount || 0);
+    }
+  });
+  
+  // Process daily transactions for last 7 days
   for (let i = 6; i >= 0; i--) {
     const day = new Date(today);
     day.setDate(today.getDate() - (6 - i));
     day.setHours(0, 0, 0, 0);
+    const dayStr = day.toISOString().split('T')[0];
     
-    const daySales = await getSumByTypeAndDate(TRANSACTION_TYPE_SALE, day, businessId);
-    const dayExpenses = await getSumByTypeAndDate(TRANSACTION_TYPE_EXPENSE, day, businessId);
-    
-    const profit = daySales - dayExpenses;
-    dailySummary.push({
-      date: day,
-      sales: daySales,
-      expenses: dayExpenses,
-      profit
-    });
-    if (Math.abs(profit) > dailyMax) {
-      dailyMax = Math.abs(profit);
-    }
+    const dayData = dailyMap[dayStr] || { sales: 0, expenses: 0 };
+    const profit = dayData.sales - dayData.expenses;
+    dailySummary.push({ date: day, sales: dayData.sales, expenses: dayData.expenses, profit });
+    if (Math.abs(profit) > dailyMax) dailyMax = Math.abs(profit);
   }
   
   if (dailyMax > 0) {
@@ -662,31 +759,52 @@ router.get('/reports', isAuthenticated, async (req, res) => {
       item.bar_height = (Math.abs(item.profit) / dailyMax) * MAX_BAR_HEIGHT;
     });
   } else {
-    dailySummary.forEach(item => {
-      item.bar_height = 0;
-    });
+    dailySummary.forEach(item => { item.bar_height = 0; });
   }
   
-  const monthlyTotals = [];
-  let monthlyMax = 1;
+  // Get all monthly transactions for the last 6 months
+  const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1);
   
+  const monthlyTransactions = await Transaction.findAll({
+    where: {
+      ...(businessId && { business_id: businessId }),
+      date: { [Op.gte]: sixMonthsAgo },
+      approval_status: 'approved'
+    },
+    attributes: ['date', 'type', 'amount'],
+    raw: true,
+    order: [['date', 'ASC']]
+  });
+  
+  // Group monthly transactions by month
+  const monthlyMap = {};
+  monthlyTransactions.forEach(t => {
+    const date = new Date(t.date);
+    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+    if (!monthlyMap[monthKey]) {
+      monthlyMap[monthKey] = { sales: 0, expenses: 0 };
+    }
+    if (t.type === 'sale') {
+      monthlyMap[monthKey].sales += parseFloat(t.amount || 0);
+    } else if (t.type === 'expense') {
+      monthlyMap[monthKey].expenses += parseFloat(t.amount || 0);
+    }
+  });
+  
+  // Process monthly transactions for last 6 months
   for (let i = 5; i >= 0; i--) {
     const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const nextMonth = new Date(today.getFullYear(), today.getMonth() - i + 1, 0);
+    const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
     
-    const monthSales = await getSumByTypeAndDateRange(TRANSACTION_TYPE_SALE, monthDate, nextMonth, businessId);
-    const monthExpenses = await getSumByTypeAndDateRange(TRANSACTION_TYPE_EXPENSE, monthDate, nextMonth, businessId);
-    
-    const profit = monthSales - monthExpenses;
+    const monthData = monthlyMap[monthKey] || { sales: 0, expenses: 0 };
+    const profit = monthData.sales - monthData.expenses;
     monthlyTotals.push({
       month: monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-      sales: monthSales,
-      expenses: monthExpenses,
+      sales: monthData.sales,
+      expenses: monthData.expenses,
       profit
     });
-    if (Math.abs(profit) > monthlyMax) {
-      monthlyMax = Math.abs(profit);
-    }
+    if (Math.abs(profit) > monthlyMax) monthlyMax = Math.abs(profit);
   }
   
   if (monthlyMax > 0) {
@@ -694,13 +812,21 @@ router.get('/reports', isAuthenticated, async (req, res) => {
       item.bar_height = (Math.abs(item.profit) / monthlyMax) * MAX_BAR_HEIGHT;
     });
   } else {
-    monthlyTotals.forEach(item => {
-      item.bar_height = 0;
-    });
+    monthlyTotals.forEach(item => { item.bar_height = 0; });
   }
   
-  const totalSales = await getSumByTypeAndDateRange(TRANSACTION_TYPE_SALE, new Date(2000, 0, 1), today, businessId);
-  const totalExpenses = await getSumByTypeAndDateRange(TRANSACTION_TYPE_EXPENSE, new Date(2000, 0, 1), today, businessId);
+  // Get all-time totals
+  const allTimeData = await Transaction.findAll({
+    where: {
+      ...(businessId && { business_id: businessId }),
+      approval_status: 'approved'
+    },
+    attributes: ['type', 'amount'],
+    raw: true
+  });
+  
+  const totalSales = allTimeData.filter(t => t.type === 'sale').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+  const totalExpenses = allTimeData.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
   
   res.render('reports', {
     dailySummary,
@@ -773,10 +899,11 @@ router.post('/user/edit/:user_id', isAuthenticated, roleRequired([ROLE_BUSINESS_
   res.redirect('/users');
 });
 
-router.get('/user/delete/:user_id', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+router.post('/user/delete/:user_id', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
   const user = await User.findByPk(req.params.user_id);
   
   if (!user) {
+    req.flash.error = 'User not found.';
     return res.redirect('/users');
   }
   
@@ -785,6 +912,7 @@ router.get('/user/delete/:user_id', isAuthenticated, roleRequired([ROLE_BUSINESS
     return res.redirect('/users');
   }
   
+  // Ensure business data isolation
   if (!isSuperAdmin(req) && user.business_id !== req.session.businessId) {
     req.flash.error = 'You do not have permission to delete this user.';
     return res.redirect('/users');
@@ -792,6 +920,11 @@ router.get('/user/delete/:user_id', isAuthenticated, roleRequired([ROLE_BUSINESS
   
   await user.destroy();
   req.flash.success = 'User deleted successfully!';
+  res.redirect('/users');
+});
+
+router.get('/user/delete/:user_id', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+  // GET endpoint redirects to users list - POST is the action
   res.redirect('/users');
 });
 
@@ -823,6 +956,204 @@ router.post('/user/add', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROL
   
   req.flash.success = 'User added successfully!';
   res.redirect('/users');
+});
+
+router.get('/settings', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+  const requestedBusinessId = Number(req.query.business_id || req.session.businessId || 0) || null;
+  let businesses = [];
+  let selectedBusiness = null;
+
+  if (isSuperAdmin(req)) {
+    businesses = await Business.findAll({ order: [['name', 'ASC']] });
+    const fallbackBusinessId = businesses[0] ? businesses[0].id : null;
+    const activeBusinessId = requestedBusinessId || fallbackBusinessId;
+    selectedBusiness = activeBusinessId ? await Business.findByPk(activeBusinessId) : null;
+  } else {
+    selectedBusiness = await Business.findByPk(req.session.businessId);
+    businesses = selectedBusiness ? [selectedBusiness] : [];
+  }
+
+  const selectedBusinessId = selectedBusiness ? selectedBusiness.id : null;
+  const categories = selectedBusinessId
+    ? await Category.findAll({
+        where: { business_id: selectedBusinessId },
+        order: [['type', 'ASC'], ['name', 'ASC']]
+      })
+    : [];
+
+  res.render('settings', {
+    title: 'Settings',
+    businesses,
+    selectedBusiness,
+    selectedBusinessId,
+    businessName: selectedBusiness ? selectedBusiness.name : '',
+    categories,
+    currentUser: {
+      id: req.session.userId,
+      role: req.session.userRole,
+      isSuperAdmin: isSuperAdmin(req),
+      isBusinessAdmin: isBusinessAdmin(req)
+    }
+  });
+});
+
+router.post('/settings/business/update', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+  const { business_id, business_name } = req.body;
+  const targetBusinessId = isSuperAdmin(req) ? Number(business_id || req.session.businessId) : req.session.businessId;
+  const cleanedName = (business_name || '').trim();
+
+  if (!targetBusinessId) {
+    req.flash.error = 'Business not found.';
+    return res.redirect('/settings');
+  }
+
+  if (!cleanedName) {
+    req.flash.error = 'Business name is required.';
+    return res.redirect(`/settings${targetBusinessId ? `?business_id=${targetBusinessId}` : ''}`);
+  }
+
+  const business = await Business.findByPk(targetBusinessId);
+  if (!business) {
+    req.flash.error = 'Business not found.';
+    return res.redirect('/settings');
+  }
+
+  if (!isSuperAdmin(req) && business.id !== req.session.businessId) {
+    req.flash.error = 'You do not have permission to edit this business.';
+    return res.redirect('/settings');
+  }
+
+  const duplicate = await Business.findOne({
+    where: { name: cleanedName }
+  });
+
+  if (duplicate && duplicate.id !== business.id) {
+    req.flash.error = 'A business with this name already exists.';
+    return res.redirect(`/settings?business_id=${business.id}`);
+  }
+
+  business.name = cleanedName;
+  await business.save();
+
+  req.flash.success = 'Business profile updated successfully!';
+  return res.redirect(`/settings?business_id=${business.id}`);
+});
+
+router.post('/settings/categories/add', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+  const { business_id, name, type } = req.body;
+  const targetBusinessId = isSuperAdmin(req) ? Number(business_id || req.session.businessId) : req.session.businessId;
+  const cleanedName = (name || '').trim();
+
+  if (!targetBusinessId) {
+    req.flash.error = 'Business not found.';
+    return res.redirect('/settings');
+  }
+
+  if (!cleanedName) {
+    req.flash.error = 'Category name is required.';
+    return res.redirect(`/settings?business_id=${targetBusinessId}`);
+  }
+
+  if (!['sale', 'expense'].includes(type)) {
+    req.flash.error = 'Invalid category type.';
+    return res.redirect(`/settings?business_id=${targetBusinessId}`);
+  }
+
+  const duplicate = await Category.findOne({
+    where: {
+      business_id: targetBusinessId,
+      name: cleanedName,
+      type
+    }
+  });
+
+  if (duplicate) {
+    req.flash.error = 'A category with this name already exists for the selected type.';
+    return res.redirect(`/settings?business_id=${targetBusinessId}`);
+  }
+
+  await Category.create({
+    business_id: targetBusinessId,
+    name: cleanedName,
+    type
+  });
+
+  req.flash.success = 'Category added successfully!';
+  return res.redirect(`/settings?business_id=${targetBusinessId}`);
+});
+
+router.post('/settings/categories/:id/update', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+  const { name, type } = req.body;
+  const category = await Category.findByPk(req.params.id);
+
+  if (!category) {
+    req.flash.error = 'Category not found.';
+    return res.redirect('/settings');
+  }
+
+  if (!isSuperAdmin(req) && category.business_id !== req.session.businessId) {
+    req.flash.error = 'You do not have permission to edit this category.';
+    return res.redirect('/settings');
+  }
+
+  const cleanedName = (name || '').trim();
+  if (!cleanedName) {
+    req.flash.error = 'Category name is required.';
+    return res.redirect(`/settings?business_id=${category.business_id}`);
+  }
+
+  if (!['sale', 'expense'].includes(type)) {
+    req.flash.error = 'Invalid category type.';
+    return res.redirect(`/settings?business_id=${category.business_id}`);
+  }
+
+  const duplicate = await Category.findOne({
+    where: {
+      business_id: category.business_id,
+      name: cleanedName,
+      type,
+      id: { [require('sequelize').Op.ne]: category.id }
+    }
+  });
+
+  if (duplicate) {
+    req.flash.error = 'Another category with this name already exists.';
+    return res.redirect(`/settings?business_id=${category.business_id}`);
+  }
+
+  category.name = cleanedName;
+  category.type = type;
+  await category.save();
+
+  req.flash.success = 'Category updated successfully!';
+  return res.redirect(`/settings?business_id=${category.business_id}`);
+});
+
+router.post('/settings/categories/:id/delete', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
+  const { Transaction } = require('../models');
+  const category = await Category.findByPk(req.params.id);
+
+  if (!category) {
+    req.flash.error = 'Category not found.';
+    return res.redirect('/settings');
+  }
+
+  if (!isSuperAdmin(req) && category.business_id !== req.session.businessId) {
+    req.flash.error = 'You do not have permission to delete this category.';
+    return res.redirect('/settings');
+  }
+
+  const transactionCount = await Transaction.count({ where: { category_id: category.id } });
+  if (transactionCount > 0) {
+    req.flash.error = 'This category cannot be deleted because it is used by existing transactions.';
+    return res.redirect(`/settings?business_id=${category.business_id}`);
+  }
+
+  const businessId = category.business_id;
+  await category.destroy();
+
+  req.flash.success = 'Category deleted successfully!';
+  return res.redirect(`/settings?business_id=${businessId}`);
 });
 
 router.get('/inventory', isAuthenticated, async (req, res) => {

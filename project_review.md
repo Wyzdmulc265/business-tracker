@@ -1,143 +1,118 @@
-# Profit Tracker Application - Code Review
+n# TrackWise Profit Tracker — Detailed Code Review
 
-## Overview
-This is an Express + EJS + Sequelize application for tracking business sales and expenses with a modern dashboard UI and role-based access control.
+## Executive Summary
+TrackWise is a functional Node.js/Express/Sequelize/EJS application for tracking business profits, expenses, and inventory. It has role-based access control, a polished dashboard UI, and inventory management. However, I found **critical functional bugs**, security gaps, and architectural issues that must be addressed before production use.
 
-## Architecture Summary
+---
 
-### Strengths
-1. **Clear separation of concerns**
-   - `server.js` handles app startup and middleware
-   - `routes/` contains the main application routes
-   - `models/` defines Sequelize models and associations
-   - `views/` contains EJS templates
-   - `static/` contains the shared CSS and client-side JavaScript
+## What’s Working
+- Server boots and serves requests correctly
+- Authentication and role-based navigation rendering
+- Business registration with auto-generated default categories
+- Transaction CRUD, filtering, and pending-approval workflow
+- Inventory item creation and CSV export
+- Dashboard daily/monthly summaries
+- Custom EJS layout wrapping system
 
-2. **Modern UI**
-   - Responsive dashboard layout
-   - Consistent color system via CSS variables
-   - Good use of cards, badges, tables, and form styling
+---
 
-3. **Feature coverage**
-   - Authentication and role-based navigation
-   - Transaction CRUD and filtering
-   - Reporting and summary views
-   - Business/user management screens
+## Critical Bugs
 
-4. **Database layer**
-   - Sequelize is used consistently
-   - Model associations are in place
-   - Seed/setup logic exists for the initial admin account
+### 1. Inventory is never updated by transactions
+`applyInventoryTransactionImpact()` is fully implemented in `models/index.js`, but it is **never called** in `routes/index.js` when creating or editing transactions. This means users can select an inventory item and quantity on the transaction form, but stock levels remain completely unchanged.
 
-## Code Quality Assessment
+### 2. Inventory summary returns wrong data keys
+`getInventorySummary()` returns `{ valuation, items, lowStockItems, lowStockCount, totalItems }`, but `views/inventory.ejs` expects `summary.totalValue` and `summary.totalQuantity`. The "Total Value" and "On Hand" stat cards will always show **$0.00** and **0**.
 
-### Backend
-#### Positive Aspects
-- Route structure is centralized and readable
-- Validation is present in several forms
-- Server-side rendering is straightforward and easy to follow
+### 3. Edit transaction ignores inventory fields
+The POST `/edit/:id` route updates `type`, `amount`, `category_id`, `description`, and `date`, but never assigns `inventory_item_id`, `quantity`, or `unit_cost` even when the user submits them.
 
-#### Areas for Improvement
-1. **Authorization gaps**
-   - Some transaction edit/delete paths need stricter ownership/business checks
-   - Authentication alone is not enough for sensitive mutation routes
+### 4. Transaction quantity/unit_cost can store null
+The add route passes `null` for quantity/unit_cost when undefined (`quantity !== undefined ? Number(quantity) : null`), but the `Transaction` model declares `allowNull: false` with `defaultValue: 1` / `0`. Depending on Sequelize strictness, this can cause silent failures or database errors.
 
-2. **Flash messaging consistency**
-   - Flash handling should rely on `connect-flash` directly
-   - Avoid overwriting `req.flash` with plain objects
+---
 
-3. **Startup safety**
-   - Database sync behavior should be non-destructive by default
-   - Prefer migrations or explicit reset flags for destructive resets
+## Security Issues
 
-4. **Shared logic**
-   - Repeated role, scoping, and lookup logic could be extracted into helpers
+### 1. Hardcoded session secret fallback
+`server.js` falls back to `'profit-tracker-secret-key-2024'` if `SECRET_KEY` is missing. If `.env` is absent in any environment, sessions are trivially forgeable.
 
-### Views
-#### Positive Aspects
-- Layout reuse is good
-- Flash and feedback areas are already present
-- Forms and tables have a polished presentation
+### 2. No CSRF protection
+`csurf` is listed in `package.json` but is never configured in `server.js`. All state-changing POST routes are vulnerable to cross-site request forgery.
 
-#### Areas for Improvement
-1. **Accessibility**
-   - Review focus states and aria labels on interactive elements
-   - Ensure buttons/links have clear labels in all layouts
+### 3. GET requests for state mutations
+`/delete/:id`, `/approve/:transaction_id`, and `/reject/:transaction_id` use GET instead of POST. These can be triggered accidentally by browser prefetch, email links, or third-party sites.
 
-2. **Validation feedback**
-   - Keep error messaging consistent across all forms
-   - Surface field-level errors more clearly where applicable
+### 4. Missing rate limiting
+Login and registration routes have no brute-force protection.
 
-### CSS
-#### Positive Aspects
-- Strong visual system with CSS custom properties
-- Responsive rules are already included
-- Components are styled consistently
+---
 
-#### Areas for Improvement
-1. **CSS maintenance**
-   - The file is large and could benefit from modularization
-   - Consider splitting into smaller component-based stylesheets
+## Performance Issues
 
-2. **Token completeness**
-   - Ensure all referenced design tokens are defined
-   - Keep color naming consistent across components
+### 1. N+1 queries in reports
+The `/reports` route runs 12 separate aggregate queries inside sequential `for` loops (6 daily + 6 monthly). This should be replaced with a single SQL aggregation query or Sequelize grouping.
 
-## Security Review
+### 2. In-memory filtering for low stock
+`getLowStockItems()` fetches **all** inventory items into memory, then filters in JavaScript. This should be done in SQL with a proper WHERE clause.
 
-### Current State
-- Session-based authentication is implemented
-- Role-based UI logic exists
-- Server-side rendering reduces some XSS risk
+### 3. No pagination on history
+`/history` loads every matching transaction. As data grows, this route will become very slow.
 
-### Recommendations
-1. **Authorization hardening**
-   - Verify business scope on all edit/delete operations
-   - Keep permission checks server-side, not just in the UI
+---
 
-2. **Input validation**
-   - Continue strengthening validation for all submitted forms
-   - Normalize and validate amounts, dates, and IDs
+## Architecture & Maintainability
 
-3. **Session security**
-   - Confirm secure cookie and session settings in production
-   - Review session store configuration for deployment
+### 1. Monolithic routes file
+`routes/index.js` is ~800 lines and handles auth, transactions, inventory, users, settings, reports, and approvals. It should be split into focused route modules.
 
-## Performance Considerations
+### 2. Duplicate `currentUser` construction
+Nearly every route manually builds the same `currentUser` object. A shared middleware should attach this to `res.locals`.
 
-### Current Strengths
-- Sequelize aggregate queries are used for summaries/reports
-- Responsive UI avoids heavy client-side rendering
+### 3. Fragile flash message proxy
+A custom Proxy wraps `req.flash` to support property-style access (`req.flash.success = '...'`). This is brittle and inconsistent with `connect-flash` documentation. Standard function-style usage should be used everywhere.
 
-### Opportunities
-1. **Query efficiency**
-   - Reduce duplicate queries where possible
-   - Cache or memoize repeated lookups during a single request
+### 4. Destructive database sync
+`initDatabase()` uses `sequelize.sync({ alter: true })` by default. In production, this can drop columns, rename fields, and corrupt data. Migrations should be used instead.
 
-2. **Database strategy**
-   - Use migration-based schema management
-   - Avoid destructive syncs in persistent environments
+### 5. Outdated deployment docs
+`DEPLOY.md` references `npm run migrations` and `npm run seed` scripts that do not exist in `package.json`. `profit tracker.txt` still describes a Python/Flask stack, which this codebase does not use.
 
-## Recommended Improvements
+---
+
+## Recommendations by Priority
+
+### Immediate (Fix before production)
+- Call `applyInventoryTransactionImpact()` in POST `/add` and `/edit` handlers when `inventory_item_id` is present
+- Fix inventory summary keys to match view expectations (or update `inventory.ejs`)
+- Convert `/delete/:id`, `/approve/:id`, and `/reject/:id` to POST routes with CSRF tokens
+- Configure `csurf` middleware and embed tokens in all forms
+- Remove hardcoded `SECRET_KEY` fallback; fail on startup if it is missing
+- Add `express-rate-limit` to the login route
 
 ### High Priority
-1. Fix any remaining authorization gaps on sensitive routes
-2. Keep flash message handling consistent with `connect-flash`
-3. Remove destructive database reset behavior by default
-4. Clean up outdated or misleading documentation
+- Split `routes/index.js` into modules (auth, transactions, inventory, users, settings, reports)
+- Add pagination to `/history` and `/inventory`
+- Replace sequential loop queries in `/reports` with SQL aggregates
+- Move `getLowStockItems` filtering into the database query
+- Wrap multi-step operations (registration, transaction + inventory) in Sequelize transactions
 
 ### Medium Priority
-1. Split large route/controller logic into helpers
-2. Modularize the CSS into smaller files
-3. Strengthen validation and error display across forms
-4. Add automated tests for critical flows
+- Standardize `req.flash` usage and remove the Proxy wrapper
+- Create a `res.locals.currentUser` middleware
+- Use `express-validator` consistently on all forms
+- Remove backup files (`server.js.backup`, `style.css.backup`) from version control
+- Update or remove outdated docs (`DEPLOY.md`, `profit tracker.txt`)
 
 ### Low Priority
-1. Improve accessibility details
-2. Add richer analytics and reporting
-3. Add export features for transaction data
+- Add automated tests (Jest + Supertest)
+- Extract domain logic into a service layer
+- Improve accessibility (ARIA labels, focus states)
+- Modularize CSS into component files
+
+---
 
 ## Conclusion
-The application is already functional and visually polished. The main improvements needed are around security, maintainability, and startup safety. Once route authorization, flash handling, and database reset behavior are tightened, the app will be in much better shape for long-term maintenance.
+TrackWise is a solid MVP with good UI coverage and clean model design. The most critical issue is that the **inventory-transaction linkage is entirely non-functional** despite full UI and model support for it. Once the critical bugs and security gaps are resolved, the app will be significantly closer to production-ready.
 
-**Overall Assessment:** Solid MVP with a few important production-readiness fixes remaining.
+**Overall Assessment:** Solid MVP with critical bugs and security gaps that need immediate attention.

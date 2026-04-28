@@ -1,0 +1,49 @@
+<h1 class="page-header">Confirm Delete</h1>
+
+<div class="card">
+    <div class="alert alert-warning">
+        <i class="fas fa-exclamation-triangle"></i>
+        Are you sure you want to delete this transaction? This action cannot be undone.
+    </div>
+
+    <div class="transaction-details">
+        <div class="detail-item">
+            <span class="detail-label">Type:</span>
+            <span class="<%= transaction.type === 'sale' ? 'type-sale' : 'type-expense' %>">
+                <%= transaction.type.charAt(0).toUpperCase() + transaction.type.slice(1) %>
+            </span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Amount:</span>
+            <span class="<%= transaction.type === 'sale' ? 'amount-positive' : 'amount-negative' %>">
+                $<%= transaction.amount.toFixed(2) %>
+            </span>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Date:</span>
+            <%= new Date(transaction.date).toLocaleDateString('en-US', { month: 'short', day: 'numeric', year: 'numeric' }) %>
+        </div>
+        <div class="detail-item">
+            <span class="detail-label">Category:</span>
+            <%= transaction.category ? transaction.category.name : '-' %>
+        </div>
+        <% if (transaction.description) { %>
+        <div class="detail-item">
+            <span class="detail-label">Description:</span>
+            <%= transaction.description %>
+        </div>
+        <% } %>
+    </div>
+
+    <div class="form-actions" style="margin-top: 2rem;">
+        <form method="POST" action="/delete/<%= transaction.id %>" style="display: inline;">
+            <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <button type="submit" class="btn btn-danger">
+                <i class="fas fa-trash"></i> Delete Transaction
+            </button>
+        </form>
+        <a href="/history" class="btn btn-secondary">
+            <i class="fas fa-times"></i> Cancel
+        </a>
+    </div>
+</div>

@@ -1,0 +1,226 @@
+<%
+    const canSwitchBusiness = typeof businesses !== 'undefined' && businesses && businesses.length > 0;
+    const selectedBusinessLabel = selectedBusiness ? selectedBusiness.name : (typeof businessName !== 'undefined' ? businessName : '');
+    const selectedBusinessIdValue = typeof selectedBusinessId !== 'undefined' && selectedBusinessId !== null ? String(selectedBusinessId) : '';
+    const categoryList = typeof categories !== 'undefined' && categories ? categories : [];
+%>
+
+<div class="page-header-row">
+    <div>
+        <h1 class="page-header">
+            <i class="fas fa-cog"></i>
+            Settings
+        </h1>
+        <p class="page-subtitle">Manage your business profile, categories, and other preferences.</p>
+    </div>
+
+    <% if (canSwitchBusiness) { %>
+    <form method="GET" action="/settings" class="inline-form">
+        <div class="form-group" style="min-width: 260px;">
+            <label for="business_id">Business</label>
+            <select id="business_id" name="business_id" class="form-control">
+                <% businesses.forEach(function(business) { %>
+                    <option value="<%= business.id %>" <%= String(business.id) === selectedBusinessIdValue ? 'selected' : '' %>>
+                        <%= business.name %>
+                    </option>
+                <% }); %>
+            </select>
+        </div>
+        <div class="filter-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-filter"></i>
+                Load
+            </button>
+        </div>
+    </form>
+    <% } %>
+</div>
+
+<div class="stats-grid">
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-building"></i></div>
+        <div class="stat-content">
+            <h3>Selected Business</h3>
+            <p><%= selectedBusinessLabel || 'Not selected' %></p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-tags"></i></div>
+        <div class="stat-content">
+            <h3>Total Categories</h3>
+            <p><%= categoryList.length %></p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-shopping-basket"></i></div>
+        <div class="stat-content">
+            <h3>Sale Categories</h3>
+            <p><%= categoryList.filter(function(category) { return category.type === 'sale'; }).length %></p>
+        </div>
+    </div>
+    <div class="stat-card">
+        <div class="stat-icon"><i class="fas fa-receipt"></i></div>
+        <div class="stat-content">
+            <h3>Expense Categories</h3>
+            <p><%= categoryList.filter(function(category) { return category.type === 'expense'; }).length %></p>
+        </div>
+    </div>
+</div>
+
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <h3 style="margin: 0;">Business Profile</h3>
+    </div>
+
+    <form method="POST" action="/settings/business/update" class="form-container" style="margin-top: 0; padding-top: 1rem;">
+        <% if (canSwitchBusiness) { %>
+            <input type="hidden" name="business_id" value="<%= selectedBusinessIdValue %>">
+        <% } %>
+
+        <div class="form-group">
+            <label for="business_name">Business Name</label>
+            <input type="text" id="business_name" name="business_name" class="form-control" value="<%= selectedBusinessLabel || '' %>" required>
+            <small class="form-text">Update the active business name.</small>
+        </div>
+
+        <div class="form-actions">
+            <button type="submit" class="btn btn-primary">
+                <i class="fas fa-save"></i>
+                Save Business Profile
+            </button>
+        </div>
+    </form>
+</div>
+
+<div class="card" style="margin-bottom: 1.5rem;">
+    <div class="card-header">
+        <h3 style="margin: 0;">Add Category</h3>
+    </div>
+
+    <form method="POST" action="/settings/categories/add" class="form-container" style="margin-top: 0; padding-top: 1rem;">
+        <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+        <% if (canSwitchBusiness) { %>
+            <input type="hidden" name="business_id" value="<%= selectedBusinessIdValue %>">
+        <% } %>
+
+        <div class="filter-row">
+            <div class="form-group">
+                <label for="category_name">Category Name</label>
+                <input type="text" id="category_name" name="name" class="form-control" placeholder="Enter category name" required>
+            </div>
+
+            <div class="form-group">
+                <label for="category_type">Category Type</label>
+                <select id="category_type" name="type" class="form-control" required>
+                    <option value="sale">Sale</option>
+                    <option value="expense">Expense</option>
+                </select>
+            </div>
+
+            <div class="filter-actions">
+                <button type="submit" class="btn btn-success">
+                    <i class="fas fa-plus-circle"></i>
+                    Add Category
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+<div class="card">
+    <div class="card-header">
+        <h3 style="margin: 0;">Category Management</h3>
+    </div>
+
+    <% if (categoryList.length > 0) { %>
+        <div class="table-responsive">
+            <table class="user-table">
+                <thead>
+                    <tr>
+                        <th>Name</th>
+                        <th>Type</th>
+                        <% if (canSwitchBusiness) { %>
+                        <th>Business</th>
+                        <% } %>
+                        <th>Actions</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <% categoryList.forEach(function(category) { %>
+                        <tr>
+                            <td>
+                                <form method="POST" action="/settings/categories/<%= category.id %>/update" class="inline-form" style="gap: 0.5rem; flex-wrap: wrap;">
+                                    <input type="text" name="name" value="<%= category.name %>" class="form-control" style="min-width: 220px;" required>
+                            </td>
+                            <td>
+                                    <select name="type" class="form-control" style="min-width: 140px;" required>
+                                        <option value="sale" <%= category.type === 'sale' ? 'selected' : '' %>>Sale</option>
+                                        <option value="expense" <%= category.type === 'expense' ? 'selected' : '' %>>Expense</option>
+                                    </select>
+                            </td>
+                            <% if (canSwitchBusiness) { %>
+                            <td><%= category.business ? category.business.name : selectedBusinessLabel %></td>
+                            <% } %>
+                            <td>
+                                    <div class="action-buttons" style="display: flex; flex-wrap: wrap; gap: 0.5rem;">
+                                        <button type="submit" class="btn btn-sm btn-primary">
+                                            <i class="fas fa-save"></i>
+                                            Save
+                                        </button>
+                                </form>
+
+                                <form method="POST" action="/settings/categories/<%= category.id %>/delete" onsubmit="return confirm('Delete this category? Transactions using it may be affected.');">
+                                    <% if (canSwitchBusiness) { %>
+                                        <input type="hidden" name="business_id" value="<%= selectedBusinessIdValue %>">
+                                    <% } %>
+                                        <button type="submit" class="btn btn-sm btn-danger">
+                                            <i class="fas fa-trash"></i>
+                                            Delete
+                                        </button>
+                                </form>
+                                    </div>
+                            </td>
+                        </tr>
+                    <% }); %>
+                </tbody>
+            </table>
+        </div>
+    <% } else { %>
+        <div class="empty-state">
+            <div class="empty-icon">
+                <i class="fas fa-tags"></i>
+            </div>
+            <p>No categories found for the selected business.</p>
+        </div>
+    <% } %>
+</div>
+
+<div class="card" style="margin-top: 1.5rem;">
+    <div class="card-header">
+        <h3 style="margin: 0;">Other Relevant Settings</h3>
+    </div>
+
+    <div class="stats-grid" style="grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); margin-top: 1rem;">
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-shield-alt"></i></div>
+            <div class="stat-content">
+                <h3>Access Control</h3>
+                <p>Manage team roles from the Users page.</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-boxes"></i></div>
+            <div class="stat-content">
+                <h3>Inventory</h3>
+                <p>Use the inventory page to keep stock levels up to date.</p>
+            </div>
+        </div>
+        <div class="stat-card">
+            <div class="stat-icon"><i class="fas fa-chart-bar"></i></div>
+            <div class="stat-content">
+                <h3>Reports</h3>
+                <p>Review sales, expenses, and performance trends.</p>
+            </div>
+        </div>
+    </div>
+</div>
