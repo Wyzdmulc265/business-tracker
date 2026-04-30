@@ -1193,13 +1193,26 @@ router.post('/settings/categories/:id/delete', isAuthenticated, roleRequired([RO
 });
 
 router.get('/inventory', isAuthenticated, async (req, res) => {
-  const businessId = req.session.businessId || null;
-  const where = businessId ? { business_id: businessId } : {};
+  const isSuperAdminUser = isSuperAdmin(req);
+  const requestedBusinessId = isSuperAdminUser ? Number(req.query.business_id || req.session.businessId || 0) || null : req.session.businessId;
+  const where = requestedBusinessId ? { business_id: requestedBusinessId } : (isSuperAdminUser ? {} : { business_id: null });
+  
+  let businesses = [];
+  let selectedBusiness = null;
+  if (isSuperAdminUser) {
+    businesses = await Business.findAll({ order: [['name', 'ASC']] });
+    const fallbackBusinessId = businesses[0] ? businesses[0].id : null;
+    const activeBusinessId = requestedBusinessId || fallbackBusinessId;
+    selectedBusiness = activeBusinessId ? await Business.findByPk(activeBusinessId) : null;
+  }
+  
+  const targetBusinessId = selectedBusiness ? selectedBusiness.id : requestedBusinessId;
+  
   const [summary, lowStockItems, inventoryItems] = await Promise.all([
-    getInventorySummary(businessId),
-    getLowStockItems(businessId),
+    getInventorySummary(targetBusinessId),
+    getLowStockItems(targetBusinessId),
     InventoryItem.findAll({
-      where,
+      where: targetBusinessId ? { business_id: targetBusinessId } : (isSuperAdminUser ? {} : { business_id: null }),
       order: [['name', 'ASC']]
     })
   ]);
@@ -1207,13 +1220,30 @@ router.get('/inventory', isAuthenticated, async (req, res) => {
     title: 'Inventory Tracker',
     summary,
     lowStockItems,
-    inventoryItems
+    inventoryItems,
+    businesses,
+    selectedBusiness,
+    selectedBusinessId: targetBusinessId,
+    currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdminUser, isBusinessAdmin: isBusinessAdmin(req) }
   });
 });
 
 router.post('/inventory/items', isAuthenticated, async (req, res) => {
-  const { name, sku, unit_cost, quantity_on_hand, low_stock_threshold } = req.body;
-  const businessId = req.session.businessId || null;
+  const { name, sku, unit_cost, quantity_on_hand, low_stock_threshold, business_id } = req.body;
+  const targetBusinessId = isSuperAdmin(req) ? Number(business_id || req.session.businessId || 0) || null : req.session.businessId;
+  
+  if (!targetBusinessId) {
+    req.flash('error', 'Business must be selected for inventory items.');
+    return res.redirect('/inventory');
+  }
+  
+  if (isSuperAdmin(req)) {
+    const selectedBusiness = await Business.findByPk(targetBusinessId);
+    if (!selectedBusiness) {
+      req.flash('error', 'Selected business not found.');
+      return res.redirect('/inventory');
+    }
+  }
 
   await InventoryItem.create({
     name: name?.trim(),
@@ -1221,7 +1251,7 @@ router.post('/inventory/items', isAuthenticated, async (req, res) => {
     unit_cost: Number(unit_cost || 0),
     quantity_on_hand: Number(quantity_on_hand || 0),
     low_stock_threshold: Number(low_stock_threshold || 0),
-    business_id: businessId
+    business_id: targetBusinessId
   });
 
   req.flash('success', 'Inventory item created successfully.');
@@ -1229,8 +1259,10 @@ router.post('/inventory/items', isAuthenticated, async (req, res) => {
 });
 
 router.get('/inventory/export.csv', isAuthenticated, async (req, res) => {
-  const businessId = req.session.businessId || null;
-  const where = businessId ? { business_id: businessId } : {};
+  const isSuperAdminUser = isSuperAdmin(req);
+  const requestedBusinessId = isSuperAdminUser ? Number(req.query.business_id || req.session.businessId || 0) || null : req.session.businessId;
+  const where = requestedBusinessId ? { business_id: requestedBusinessId } : (isSuperAdminUser ? {} : { business_id: null });
+  
   const items = await InventoryItem.findAll({
     where,
     order: [['name', 'ASC']]

@@ -3,6 +3,23 @@
         <h1 class="page-header"><i class="fas fa-boxes"></i> Inventory Tracker</h1>
         <p class="page-subtitle">Track stock levels, low-stock alerts, and inventory valuation.</p>
     </div>
+    <% if (currentUser.isSuperAdmin && businesses && businesses.length > 0) { %>
+    <div class="page-actions">
+        <form method="GET" action="/inventory" class="inline-form">
+            <div class="form-group">
+                <label for="business_id">Business</label>
+                <select id="business_id" name="business_id" class="form-control" onchange="this.form.submit()">
+                    <option value="">All Businesses</option>
+                    <% businesses.forEach(function(business) { %>
+                        <option value="<%= business.id %>" <%= String(business.id) === String(selectedBusinessId) ? 'selected' : '' %>>
+                            <%= business.name %>
+                        </option>
+                    <% }); %>
+                </select>
+            </div>
+        </form>
+    </div>
+    <% } else { %>
     <div class="page-actions">
         <a class="btn btn-secondary" href="/inventory/export.csv">
             <i class="fas fa-file-csv"></i> Export CSV
@@ -11,6 +28,7 @@
             <i class="fas fa-plus"></i> Add Transaction
         </a>
     </div>
+    <% } %>
 </div>
 
 <div class="stats-grid">
@@ -52,6 +70,19 @@
 
         <form method="POST" action="/inventory/items" class="form-grid">
             <input type="hidden" name="_csrf" value="<%= csrfToken %>">
+            <% if (currentUser.isSuperAdmin && businesses && businesses.length > 0) { %>
+            <div class="form-group" style="width: 100%;">
+                <label for="business_id">Business *</label>
+                <select id="business_id" name="business_id" class="form-control" required>
+                    <option value="">Select a business</option>
+                    <% businesses.forEach(function(business) { %>
+                        <option value="<%= business.id %>" <%= String(business.id) === String(selectedBusinessId) ? 'selected' : '' %>>
+                            <%= business.name %>
+                        </option>
+                    <% }); %>
+                </select>
+            </div>
+            <% } %>
             <div class="form-group">
                 <label for="name">Item Name *</label>
                 <input type="text" id="name" name="name" class="form-control" required placeholder="e.g. Printer Paper">
