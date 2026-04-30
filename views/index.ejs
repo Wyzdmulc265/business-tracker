@@ -1,45 +1,69 @@
 <div class="page-header">
-    <i class="fas fa-tachometer-alt"></i>
-    Dashboard Overview
-</div>
+     <i class="fas fa-tachometer-alt"></i>
+     Dashboard Overview
+ </div>
 
-<div class="dashboard-grid">
-    <div class="card summary-card sales">
-        <i class="fas fa-dollar-sign icon"></i>
-        <h3>Today's Sales</h3>
-        <div class="value">$<%= todaySales.toFixed(2) %></div>
-    </div>
+ <div class="dashboard-grid">
+     <div class="card summary-card sales">
+         <i class="fas fa-dollar-sign icon"></i>
+         <h3>Today's Sales</h3>
+         <div class="value">$<%= todaySales.toFixed(2) %></div>
+     </div>
 
-    <div class="card summary-card expenses">
-        <i class="fas fa-credit-card icon"></i>
-        <h3>Today's Expenses</h3>
-        <div class="value">$<%= todayExpenses.toFixed(2) %></div>
-    </div>
+     <div class="card summary-card purchases">
+         <i class="fas fa-shopping-cart icon"></i>
+         <h3>Today's Purchases</h3>
+         <div class="value">$<%= todayPurchases.toFixed(2) %></div>
+     </div>
 
-    <div class="card summary-card profit">
-        <i class="fas fa-chart-line icon"></i>
-        <h3>Today's Profit</h3>
-        <div class="value">$<%= todayProfit.toFixed(2) %></div>
-    </div>
+     <div class="card summary-card other-expenses">
+         <i class="fas fa-file-invoice-dollar icon"></i>
+         <h3>Today's Other Expenses</h3>
+         <div class="value">$<%= todayOtherExpenses.toFixed(2) %></div>
+     </div>
 
-    <div class="card summary-card sales">
-        <i class="fas fa-calendar-alt icon"></i>
-        <h3>This Month's Sales</h3>
-        <div class="value">$<%= monthSales.toFixed(2) %></div>
-    </div>
+     <div class="card summary-card gross-profit">
+         <i class="fas fa-chart-line icon"></i>
+         <h3>Today's Gross Profit</h3>
+         <div class="value">$<%= todayGrossProfit.toFixed(2) %></div>
+     </div>
 
-    <div class="card summary-card expenses">
-        <i class="fas fa-wallet icon"></i>
-        <h3>This Month's Expenses</h3>
-        <div class="value">$<%= monthExpenses.toFixed(2) %></div>
-    </div>
+     <div class="card summary-card net-profit">
+         <i class="fas fa-coins icon"></i>
+         <h3>Today's Net Profit</h3>
+         <div class="value">$<%= todayNetProfit.toFixed(2) %></div>
+     </div>
 
-    <div class="card summary-card profit">
-        <i class="fas fa-coins icon"></i>
-        <h3>This Month's Profit</h3>
-        <div class="value">$<%= monthProfit.toFixed(2) %></div>
-    </div>
-</div>
+     <div class="card summary-card sales">
+         <i class="fas fa-calendar-alt icon"></i>
+         <h3>This Month's Sales</h3>
+         <div class="value">$<%= monthSales.toFixed(2) %></div>
+     </div>
+
+     <div class="card summary-card purchases">
+         <i class="fas fa-shopping-cart icon"></i>
+         <h3>This Month's Purchases</h3>
+         <div class="value">$<%= monthPurchases.toFixed(2) %></div>
+     </div>
+
+     <div class="card summary-card other-expenses">
+         <i class="fas fa-file-invoice-dollar icon"></i>
+         <h3>This Month's Other Expenses</h3>
+         <div class="value">$<%= monthOtherExpenses.toFixed(2) %></div>
+     </div>
+
+     <div class="card summary-card gross-profit">
+         <i class="fas fa-chart-line icon"></i>
+         <h3>This Month's Gross Profit</h3>
+         <div class="value">$<%= monthGrossProfit.toFixed(2) %></div>
+     </div>
+
+     <div class="card summary-card net-profit">
+         <i class="fas fa-coins icon"></i>
+         <h3>This Month's Net Profit</h3>
+         <div class="value">$<%= monthNetProfit.toFixed(2) %></div>
+     </div>
+ </div>
 
 <div class="card">
     <h3 style="margin-bottom: 1.5rem; color: var(--gray-900); font-size: 1.25rem; font-weight: 600;">

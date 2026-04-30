@@ -388,8 +388,10 @@ body {
 }
 
 .summary-card.sales .value { color: var(--success-color); }
-.summary-card.expenses .value { color: var(--danger-color); }
-.summary-card.profit .value { color: var(--primary-color); }
+.summary-card.purchases .value { color: var(--danger-color); }
+.summary-card.other-expenses .value { color: var(--warning-color); }
+.summary-card.gross-profit .value { color: var(--primary-color); }
+.summary-card.net-profit .value { color: var(--accent-color); }
 
 .summary-card .change {
     font-size: 0.875rem;

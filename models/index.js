@@ -374,39 +374,155 @@ User.hasMany(InventoryMovement, { foreignKey: 'created_by', as: 'inventoryMoveme
 InventoryMovement.belongsTo(User, { foreignKey: 'created_by', as: 'creator' });
 
 async function getSumByTypeAndDate(transType, targetDate, businessId = null) {
-  const where = {
-    type: transType,
-    date: targetDate instanceof Date ? targetDate.toISOString().split('T')[0] : targetDate,
-    approval_status: 'approved'
-  };
-  
-  if (businessId) {
-    where.business_id = businessId;
-  }
-  
-  const result = await Transaction.sum('amount', { where });
-  return result || 0;
+   const where = {
+     type: transType,
+     date: targetDate instanceof Date ? targetDate.toISOString().split('T')[0] : targetDate,
+     approval_status: 'approved'
+   };
+   
+   if (businessId) {
+     where.business_id = businessId;
+   }
+   
+   const result = await Transaction.sum('amount', { where });
+   return result || 0;
+ }
+
+async function getSumOfSales(targetDate, businessId = null) {
+   const where = {
+     type: 'sale',
+     date: targetDate instanceof Date ? targetDate.toISOString().split('T')[0] : targetDate,
+     approval_status: 'approved'
+   };
+   
+   if (businessId) {
+     where.business_id = businessId;
+   }
+   
+   const result = await Transaction.sum('amount', { where });
+   return result || 0;
+}
+
+async function getSumOfPurchases(targetDate, businessId = null) {
+   const where = {
+     type: 'expense',
+     date: targetDate instanceof Date ? targetDate.toISOString().split('T')[0] : targetDate,
+     approval_status: 'approved',
+     inventory_item_id: {
+       [Op.ne]: null
+     }
+   };
+   
+   if (businessId) {
+     where.business_id = businessId;
+   }
+   
+   const result = await Transaction.sum('amount', { where });
+   return result || 0;
+}
+
+async function getSumOfOtherExpenses(targetDate, businessId = null) {
+   const where = {
+     type: 'expense',
+     date: targetDate instanceof Date ? targetDate.toISOString().split('T')[0] : targetDate,
+     approval_status: 'approved',
+     inventory_item_id: null
+   };
+   
+   if (businessId) {
+     where.business_id = businessId;
+   }
+   
+   const result = await Transaction.sum('amount', { where });
+   return result || 0;
 }
 
 async function getSumByTypeAndDateRange(transType, startDate, endDate, businessId = null) {
-  const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
-  const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
-  
-  const where = {
-    type: transType,
-    date: {
-      [Op.gte]: start,
-      [Op.lte]: end
-    },
-    approval_status: 'approved'
-  };
-  
-  if (businessId) {
-    where.business_id = businessId;
-  }
-  
-  const result = await Transaction.sum('amount', { where });
-  return result || 0;
+   const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
+   const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
+   
+   const where = {
+     type: transType,
+     date: {
+       [Op.gte]: start,
+       [Op.lte]: end
+     },
+     approval_status: 'approved'
+   };
+   
+   if (businessId) {
+     where.business_id = businessId;
+   }
+   
+   const result = await Transaction.sum('amount', { where });
+   return result || 0;
+}
+
+async function getSumOfSalesRange(startDate, endDate, businessId = null) {
+   const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
+   const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
+   
+   const where = {
+     type: 'sale',
+     date: {
+       [Op.gte]: start,
+       [Op.lte]: end
+     },
+     approval_status: 'approved'
+   };
+   
+   if (businessId) {
+     where.business_id = businessId;
+   }
+   
+   const result = await Transaction.sum('amount', { where });
+   return result || 0;
+}
+
+async function getSumOfPurchasesRange(startDate, endDate, businessId = null) {
+   const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
+   const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
+   
+   const where = {
+     type: 'expense',
+     date: {
+       [Op.gte]: start,
+       [Op.lte]: end
+     },
+     approval_status: 'approved',
+     inventory_item_id: {
+       [Op.ne]: null
+     }
+   };
+   
+   if (businessId) {
+     where.business_id = businessId;
+   }
+   
+   const result = await Transaction.sum('amount', { where });
+   return result || 0;
+}
+
+async function getSumOfOtherExpensesRange(startDate, endDate, businessId = null) {
+   const start = startDate instanceof Date ? startDate.toISOString().split('T')[0] : startDate;
+   const end = endDate instanceof Date ? endDate.toISOString().split('T')[0] : endDate;
+   
+   const where = {
+     type: 'expense',
+     date: {
+       [Op.gte]: start,
+       [Op.lte]: end
+     },
+     approval_status: 'approved',
+     inventory_item_id: null
+   };
+   
+   if (businessId) {
+     where.business_id = businessId;
+   }
+   
+   const result = await Transaction.sum('amount', { where });
+   return result || 0;
 }
 
 async function getLowStockItems(businessId = null) {
@@ -536,17 +652,23 @@ async function applyInventoryTransactionImpact(transaction, options = {}) {
 }
 
 module.exports = {
-  sequelize,
-  Business,
-  Category,
-  User,
-  Transaction,
-  InventoryItem,
-  InventoryMovement,
-  getSumByTypeAndDate,
-  getSumByTypeAndDateRange,
-  getLowStockItems,
-  getInventoryValuation,
-  getInventorySummary,
-  applyInventoryTransactionImpact
+   sequelize,
+   Business,
+   Category,
+   User,
+   Transaction,
+   InventoryItem,
+   InventoryMovement,
+   getSumByTypeAndDate,
+   getSumByTypeAndDateRange,
+   getSumOfSales,
+   getSumOfPurchases,
+   getSumOfOtherExpenses,
+   getSumOfSalesRange,
+   getSumOfPurchasesRange,
+   getSumOfOtherExpensesRange,
+   getLowStockItems,
+   getInventoryValuation,
+   getInventorySummary,
+   applyInventoryTransactionImpact
 };

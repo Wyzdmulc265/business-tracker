@@ -192,21 +192,25 @@ router.post('/register', async (req, res) => {
 });
 
 router.get('/', isAuthenticated, async (req, res) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const businessId = isSuperAdmin(req) ? null : req.session.businessId;
-  
-  const { getSumByTypeAndDate, getSumByTypeAndDateRange, Transaction } = require('../models');
-  
-  const todaySales = await getSumByTypeAndDate(TRANSACTION_TYPE_SALE, today, businessId);
-  const todayExpenses = await getSumByTypeAndDate(TRANSACTION_TYPE_EXPENSE, today, businessId);
-  const todayProfit = todaySales - todayExpenses;
-  
-  const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
-  const monthSales = await getSumByTypeAndDateRange(TRANSACTION_TYPE_SALE, monthStart, today, businessId);
-  const monthExpenses = await getSumByTypeAndDateRange(TRANSACTION_TYPE_EXPENSE, monthStart, today, businessId);
-  const monthProfit = monthSales - monthExpenses;
+   const today = new Date();
+   today.setHours(0, 0, 0, 0);
+   
+   const businessId = isSuperAdmin(req) ? null : req.session.businessId;
+   
+   const { getSumOfSales, getSumOfPurchases, getSumOfOtherExpenses, getSumByTypeAndDateRange, Transaction } = require('../models');
+   
+   const todaySales = await getSumOfSales(today, businessId);
+   const todayPurchases = await getSumOfPurchases(today, businessId);
+   const todayOtherExpenses = await getSumOfOtherExpenses(today, businessId);
+   const todayGrossProfit = todaySales - todayPurchases;
+   const todayNetProfit = todayGrossProfit - todayOtherExpenses;
+   
+   const monthStart = new Date(today.getFullYear(), today.getMonth(), 1);
+   const monthSales = await getSumOfSalesRange(monthStart, today, businessId);
+   const monthPurchases = await getSumOfPurchasesRange(monthStart, today, businessId);
+   const monthOtherExpenses = await getSumOfOtherExpensesRange(monthStart, today, businessId);
+   const monthGrossProfit = monthSales - monthPurchases;
+   const monthNetProfit = monthGrossProfit - monthOtherExpenses;
   
   let query = Transaction.findAll({
     where: { approval_status: 'approved' },
@@ -232,16 +236,20 @@ router.get('/', isAuthenticated, async (req, res) => {
   
   const recentTransactions = await query;
   
-  res.render('index', {
-    todaySales,
-    todayExpenses,
-    todayProfit,
-    monthSales,
-    monthExpenses,
-    monthProfit,
-    recentTransactions,
-    currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) }
-  });
+   res.render('index', {
+     todaySales,
+     todayPurchases,
+     todayOtherExpenses,
+     todayGrossProfit,
+     todayNetProfit,
+     monthSales,
+     monthPurchases,
+     monthOtherExpenses,
+     monthGrossProfit,
+     monthNetProfit,
+     recentTransactions,
+     currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) }
+   });
 });
 
 router.get('/add', isAuthenticated, async (req, res) => {
@@ -703,144 +711,168 @@ router.get('/reject/:transaction_id', isAuthenticated, roleRequired([ROLE_BUSINE
 });
 
 router.get('/reports', isAuthenticated, async (req, res) => {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-  
-  const businessId = isSuperAdmin(req) ? null : req.session.businessId;
-  const { Op } = require('sequelize');
-  const { Transaction } = require('../models');
-  
-  // Build date ranges for daily and monthly summaries
-  const dailySummary = [];
-  const monthlyTotals = [];
-  let dailyMax = 1;
-  let monthlyMax = 1;
-  
-  // Get all daily transactions for the last 7 days
-  const sevenDaysAgo = new Date(today);
-  sevenDaysAgo.setDate(today.getDate() - 6);
-  
-  const dailyTransactions = await Transaction.findAll({
-    where: {
-      ...(businessId && { business_id: businessId }),
-      date: { [Op.gte]: sevenDaysAgo },
-      approval_status: 'approved'
-    },
-    attributes: ['date', 'type', 'amount'],
-    raw: true,
-    order: [['date', 'ASC']]
-  });
-  
-  // Group daily transactions by date
-  const dailyMap = {};
-  dailyTransactions.forEach(t => {
-    const dateStr = new Date(t.date).toISOString().split('T')[0];
-    if (!dailyMap[dateStr]) {
-      dailyMap[dateStr] = { sales: 0, expenses: 0 };
-    }
-    if (t.type === 'sale') {
-      dailyMap[dateStr].sales += parseFloat(t.amount || 0);
-    } else if (t.type === 'expense') {
-      dailyMap[dateStr].expenses += parseFloat(t.amount || 0);
-    }
-  });
-  
-  // Process daily transactions for last 7 days
-  for (let i = 6; i >= 0; i--) {
-    const day = new Date(today);
-    day.setDate(today.getDate() - (6 - i));
-    day.setHours(0, 0, 0, 0);
-    const dayStr = day.toISOString().split('T')[0];
-    
-    const dayData = dailyMap[dayStr] || { sales: 0, expenses: 0 };
-    const profit = dayData.sales - dayData.expenses;
-    dailySummary.push({ date: day, sales: dayData.sales, expenses: dayData.expenses, profit });
-    if (Math.abs(profit) > dailyMax) dailyMax = Math.abs(profit);
-  }
-  
-  if (dailyMax > 0) {
-    dailySummary.forEach(item => {
-      item.bar_height = (Math.abs(item.profit) / dailyMax) * MAX_BAR_HEIGHT;
-    });
-  } else {
-    dailySummary.forEach(item => { item.bar_height = 0; });
-  }
-  
-  // Get all monthly transactions for the last 6 months
-  const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1);
-  
-  const monthlyTransactions = await Transaction.findAll({
-    where: {
-      ...(businessId && { business_id: businessId }),
-      date: { [Op.gte]: sixMonthsAgo },
-      approval_status: 'approved'
-    },
-    attributes: ['date', 'type', 'amount'],
-    raw: true,
-    order: [['date', 'ASC']]
-  });
-  
-  // Group monthly transactions by month
-  const monthlyMap = {};
-  monthlyTransactions.forEach(t => {
-    const date = new Date(t.date);
-    const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
-    if (!monthlyMap[monthKey]) {
-      monthlyMap[monthKey] = { sales: 0, expenses: 0 };
-    }
-    if (t.type === 'sale') {
-      monthlyMap[monthKey].sales += parseFloat(t.amount || 0);
-    } else if (t.type === 'expense') {
-      monthlyMap[monthKey].expenses += parseFloat(t.amount || 0);
-    }
-  });
-  
-  // Process monthly transactions for last 6 months
-  for (let i = 5; i >= 0; i--) {
-    const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
-    const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
-    
-    const monthData = monthlyMap[monthKey] || { sales: 0, expenses: 0 };
-    const profit = monthData.sales - monthData.expenses;
-    monthlyTotals.push({
-      month: monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
-      sales: monthData.sales,
-      expenses: monthData.expenses,
-      profit
-    });
-    if (Math.abs(profit) > monthlyMax) monthlyMax = Math.abs(profit);
-  }
-  
-  if (monthlyMax > 0) {
-    monthlyTotals.forEach(item => {
-      item.bar_height = (Math.abs(item.profit) / monthlyMax) * MAX_BAR_HEIGHT;
-    });
-  } else {
-    monthlyTotals.forEach(item => { item.bar_height = 0; });
-  }
-  
-  // Get all-time totals
-  const allTimeData = await Transaction.findAll({
-    where: {
-      ...(businessId && { business_id: businessId }),
-      approval_status: 'approved'
-    },
-    attributes: ['type', 'amount'],
-    raw: true
-  });
-  
-  const totalSales = allTimeData.filter(t => t.type === 'sale').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
-  const totalExpenses = allTimeData.filter(t => t.type === 'expense').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
-  
-  res.render('reports', {
-    dailySummary,
-    monthlyTotals,
-    totalSales,
-    totalExpenses,
-    totalProfit: totalSales - totalExpenses,
-    currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) }
-  });
-});
+   const today = new Date();
+   today.setHours(0, 0, 0, 0);
+   
+   const businessId = isSuperAdmin(req) ? null : req.session.businessId;
+   const { Op } = require('sequelize');
+   const { Transaction } = require('../models');
+   
+   // Build date ranges for daily and monthly summaries
+   const dailySummary = [];
+   const monthlyTotals = [];
+   let dailyMax = 1;
+   let monthlyMax = 1;
+   
+   // Get all daily transactions for the last 7 days
+   const sevenDaysAgo = new Date(today);
+   sevenDaysAgo.setDate(today.getDate() - 6);
+   
+   const dailyTransactions = await Transaction.findAll({
+     where: {
+       ...(businessId && { business_id: businessId }),
+       date: { [Op.gte]: sevenDaysAgo },
+       approval_status: 'approved'
+     },
+     attributes: ['date', 'type', 'amount', 'inventory_item_id'],
+     raw: true,
+     order: [['date', 'ASC']]
+   });
+   
+   // Group daily transactions by date
+   const dailyMap = {};
+   dailyTransactions.forEach(t => {
+     const dateStr = new Date(t.date).toISOString().split('T')[0];
+     if (!dailyMap[dateStr]) {
+       dailyMap[dateStr] = { sales: 0, purchases: 0, otherExpenses: 0 };
+     }
+     if (t.type === 'sale') {
+       dailyMap[dateStr].sales += parseFloat(t.amount || 0);
+     } else if (t.type === 'expense') {
+       if (t.inventory_item_id !== null) {
+         dailyMap[dateStr].purchases += parseFloat(t.amount || 0);
+       } else {
+         dailyMap[dateStr].otherExpenses += parseFloat(t.amount || 0);
+       }
+     }
+   });
+   
+   // Process daily transactions for last 7 days
+   for (let i = 6; i >= 0; i--) {
+     const day = new Date(today);
+     day.setDate(today.getDate() - (6 - i));
+     day.setHours(0, 0, 0, 0);
+     const dayStr = day.toISOString().split('T')[0];
+     
+     const dayData = dailyMap[dayStr] || { sales: 0, purchases: 0, otherExpenses: 0 };
+     const grossProfit = dayData.sales - dayData.purchases;
+     const netProfit = grossProfit - dayData.otherExpenses;
+     dailySummary.push({ 
+       date: day, 
+       sales: dayData.sales, 
+       purchases: dayData.purchases,
+       otherExpenses: dayData.otherExpenses,
+       grossProfit,
+       netProfit 
+     });
+     if (Math.abs(netProfit) > dailyMax) dailyMax = Math.abs(netProfit);
+   }
+   
+   if (dailyMax > 0) {
+     dailySummary.forEach(item => {
+       item.bar_height = (Math.abs(item.netProfit) / dailyMax) * MAX_BAR_HEIGHT;
+     });
+   } else {
+     dailySummary.forEach(item => { item.bar_height = 0; });
+   }
+   
+   // Get all monthly transactions for the last 6 months
+   const sixMonthsAgo = new Date(today.getFullYear(), today.getMonth() - 5, 1);
+   
+   const monthlyTransactions = await Transaction.findAll({
+     where: {
+       ...(businessId && { business_id: businessId }),
+       date: { [Op.gte]: sixMonthsAgo },
+       approval_status: 'approved'
+     },
+     attributes: ['date', 'type', 'amount', 'inventory_item_id'],
+     raw: true,
+     order: [['date', 'ASC']]
+   });
+   
+   // Group monthly transactions by month
+   const monthlyMap = {};
+   monthlyTransactions.forEach(t => {
+     const date = new Date(t.date);
+     const monthKey = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, '0')}`;
+     if (!monthlyMap[monthKey]) {
+       monthlyMap[monthKey] = { sales: 0, purchases: 0, otherExpenses: 0 };
+     }
+     if (t.type === 'sale') {
+       monthlyMap[monthKey].sales += parseFloat(t.amount || 0);
+     } else if (t.type === 'expense') {
+       if (t.inventory_item_id !== null) {
+         monthlyMap[monthKey].purchases += parseFloat(t.amount || 0);
+       } else {
+         monthlyMap[monthKey].otherExpenses += parseFloat(t.amount || 0);
+       }
+     }
+   });
+   
+   // Process monthly transactions for last 6 months
+   for (let i = 5; i >= 0; i--) {
+     const monthDate = new Date(today.getFullYear(), today.getMonth() - i, 1);
+     const monthKey = `${monthDate.getFullYear()}-${String(monthDate.getMonth() + 1).padStart(2, '0')}`;
+     
+     const monthData = monthlyMap[monthKey] || { sales: 0, purchases: 0, otherExpenses: 0 };
+     const grossProfit = monthData.sales - monthData.purchases;
+     const netProfit = grossProfit - monthData.otherExpenses;
+     monthlyTotals.push({
+       month: monthDate.toLocaleDateString('en-US', { month: 'long', year: 'numeric' }),
+       sales: monthData.sales,
+       purchases: monthData.purchases,
+       otherExpenses: monthData.otherExpenses,
+       grossProfit,
+       netProfit
+     });
+     if (Math.abs(netProfit) > monthlyMax) monthlyMax = Math.abs(netProfit);
+   }
+   
+   if (monthlyMax > 0) {
+     monthlyTotals.forEach(item => {
+       item.bar_height = (Math.abs(item.netProfit) / monthlyMax) * MAX_BAR_HEIGHT;
+     });
+   } else {
+     monthlyTotals.forEach(item => { item.bar_height = 0; });
+   }
+   
+   // Get all-time totals
+   const allTimeData = await Transaction.findAll({
+     where: {
+       ...(businessId && { business_id: businessId }),
+       approval_status: 'approved'
+     },
+     attributes: ['type', 'amount', 'inventory_item_id'],
+     raw: true
+   });
+   
+   const totalSales = allTimeData.filter(t => t.type === 'sale').reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+   const totalPurchases = allTimeData.filter(t => t.type === 'expense' && t.inventory_item_id !== null).reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+   const totalOtherExpenses = allTimeData.filter(t => t.type === 'expense' && t.inventory_item_id === null).reduce((sum, t) => sum + parseFloat(t.amount || 0), 0);
+   const totalGrossProfit = totalSales - totalPurchases;
+   const totalNetProfit = totalGrossProfit - totalOtherExpenses;
+   
+   res.render('reports', {
+     dailySummary,
+     monthlyTotals,
+     totalSales,
+     totalPurchases,
+     totalOtherExpenses,
+     totalGrossProfit,
+     totalNetProfit,
+     currentUser: { id: req.session.userId, role: req.session.userRole, isSuperAdmin: isSuperAdmin(req), isBusinessAdmin: isBusinessAdmin(req) }
+   });
+ });
 
 router.get('/users', isAuthenticated, roleRequired([ROLE_BUSINESS_ADMIN, ROLE_SUPER_ADMIN]), async (req, res) => {
   let where = {};
