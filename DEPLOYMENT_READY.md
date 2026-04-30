@@ -144,11 +144,13 @@ All critical bugs, security issues, and performance problems from the project re
 - [x] CSRF protection enabled on authenticated routes
 - [x] GET to POST conversion for state-changing operations
 - [x] Business data isolation enforced
+- [x] Inventory data isolation with business selector for super admins
 - [x] N+1 query problem resolved
 - [x] Pagination added to history
 - [x] Database sync safe for production (using `{ alter: true }`)
 - [x] Session configuration uses secure cookies in production
 - [x] All inventory-transaction impacts properly applied
+- [x] Profit calculation distinguishes purchases from other expenses
 
 ---
 
@@ -176,6 +178,8 @@ All critical bugs, security issues, and performance problems from the project re
 | Login brute-force protection | None | 5 attempts/15min | **Protected** |
 | State mutation via GET | Vulnerable | Converted to POST | **Secured** |
 | Session secret | Fallback used | Required in .env | **Forced secure config** |
+| Inventory business isolation | Single business only | Multi-business with selector | **Isolated** |
+| Profit calculation | Sales - Expenses | Sales - Purchases - Other | **Detailed** |
 
 ---
 
@@ -187,13 +191,15 @@ All critical bugs, security issues, and performance problems from the project re
 - Brute-force protection active
 - State mutations secured
 - Business data isolated
+- Inventory data isolation with business selector
 - Secret key management hardened
 
 ✅ **All Functional Bugs Fixed**
 - Inventory transactions properly tracked
-- Reports optimized
+- Reports optimized with detailed profit calculation
 - Data pagination working
 - Approval workflow complete
+- Profit calculation distinguishes purchases vs expenses
 
 ---
 
